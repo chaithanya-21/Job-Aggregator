@@ -10,6 +10,7 @@ app.use(express.static(__dirname));
 
 app.get("/", (req,res)=>res.sendFile(__dirname+"/index.html"));
 
+/* JOB API */
 const countryCodeMap={
     "India":"in",
     "United States":"us",
@@ -43,7 +44,7 @@ app.get("/api/jobs", async(req,res)=>{
             title:job.title||"",
             company:job.company?.display_name||"",
             salary:job.salary_average||"Not specified",
-            skills:job.description?.substring(0,120)||"",
+            skills:job.description?.substring(0,140)||"",
             description:job.description?.substring(0,500)||"",
             source:job.redirect_url||"#",
             location:`${job.location?.area[1]||""}, ${job.location?.area[0]||""}`
@@ -55,6 +56,34 @@ app.get("/api/jobs", async(req,res)=>{
     }catch(err){
         console.error(err.message);
         res.status(500).json({error:"Error fetching jobs"});
+    }
+});
+
+
+/* CHATGPT API */
+app.post("/chat", async(req,res)=>{
+
+    try{
+
+        const response = await axios.post(
+            "https://api.openai.com/v1/chat/completions",
+            {
+                model: "gpt-4o-mini",
+                messages: req.body.messages
+            },
+            {
+                headers:{
+                    "Authorization":`Bearer ${process.env.OPENAI_API_KEY}`,
+                    "Content-Type":"application/json"
+                }
+            }
+        );
+
+        res.json(response.data);
+
+    }catch(e){
+        console.error(e.response?.data||e.message);
+        res.status(500).json({error:"ChatGPT error"});
     }
 });
 
