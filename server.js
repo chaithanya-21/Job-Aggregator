@@ -1,6 +1,7 @@
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
+const fs = require("fs");
 require("dotenv").config();
 
 const app = express();
@@ -8,9 +9,27 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
 
-app.get("/", (req,res)=>res.sendFile(__dirname+"/index.html"));
+/* 🔹 SERVE HOMEPAGE */
+app.get("/", (req,res)=>{
+    res.sendFile(__dirname + "/index.html");
+});
 
-const SHEET_WEBHOOK="https://script.google.com/macros/s/AKfycbxG4p-RFTXJtqlcb7niLXoVlpaeR-5PPRhnEbX07jjmvuwI7CdwLqvYrLS5Xig2Rvhz/exec";
+/* 🔹 SERVE ADMIN PAGE */
+app.get("/admin", (req,res)=>{
+    res.sendFile(__dirname + "/admin.html");
+});
+
+/* 🔹 SETTINGS ROUTES */
+app.get("/settings",(req,res)=>{
+    res.sendFile(__dirname + "/settings.json");
+});
+
+app.post("/settings",(req,res)=>{
+    fs.writeFileSync("settings.json", JSON.stringify(req.body,null,2));
+    res.send({status:"saved"});
+});
+
+/* 🔹 JOB API */
 
 const countryCodeMap={
     "India":"in",
@@ -57,20 +76,6 @@ app.get("/api/jobs", async(req,res)=>{
         console.error(err.message);
         res.status(500).json({error:"Error fetching jobs"});
     }
-});
-
-
-//  log applied job to Google Sheet
-app.post("/log-job", async(req,res)=>{
-
-    try{
-        await axios.post(SHEET_WEBHOOK, req.body);
-        res.send({status:"logged"});
-    }catch(e){
-        console.log(e.message);
-        res.status(500).send("sheet error");
-    }
-
 });
 
 const PORT=process.env.PORT||5000;
