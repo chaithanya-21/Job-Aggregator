@@ -9,29 +9,17 @@
 
 <style>
 body{font-family:Segoe UI;margin:0;background:#eef3f8}
-
 .nav{display:flex;gap:18px;padding:15px 25px;background:white;
 box-shadow:0 2px 6px rgba(0,0,0,0.08)}
-
 .nav button{border:none;background:none;font-size:14px;cursor:pointer}
-
 .tab{display:none;padding:25px}
 .active{display:block}
-
-.job{
-background:white;border-radius:8px;padding:16px;margin-bottom:12px;
-box-shadow:0 2px 6px rgba(0,0,0,0.08)
-}
-
+.job{background:white;border-radius:8px;padding:16px;margin-bottom:12px;
+box-shadow:0 2px 6px rgba(0,0,0,0.08)}
 .title{font-weight:600;font-size:17px}
 .small{font-size:13px;color:#555;margin-top:3px}
-
-button.action{
-margin-top:6px;padding:7px 11px;border:none;border-radius:5px;
-background:#0a66c2;color:white;cursor:pointer
-}
-
-canvas{max-width:280px!important;max-height:200px!important;margin:15px}
+button.action{margin-top:6px;padding:7px 11px;border:none;border-radius:5px;background:#0a66c2;color:white;cursor:pointer}
+canvas{max-width:320px!important;max-height:220px!important;margin:15px}
 .dashboard{display:flex;flex-wrap:wrap;gap:20px}
 </style>
 </head>
@@ -41,7 +29,6 @@ canvas{max-width:280px!important;max-height:200px!important;margin:15px}
 <div class="nav">
 <button onclick="showTab('admin')">Admin</button>
 <button onclick="showTab('jobs')">Available Jobs</button>
-<button onclick="showTab('unapplied')">Unapplied Jobs</button>
 <button onclick="showTab('applied')">Applied Jobs</button>
 <button onclick="showTab('analytics')">Analytics</button>
 <button onclick="showTab('chat')">ChatGPT</button>
@@ -50,64 +37,43 @@ canvas{max-width:280px!important;max-height:200px!important;margin:15px}
 <!-- ADMIN -->
 <div id="admin" class="tab active">
 <h2>Admin Panel</h2>
+<p>System running normally.</p>
 <button class="action" onclick="location.reload()">Refresh</button>
 </div>
 
-<!-- AVAILABLE JOBS -->
+<!-- JOBS -->
 <div id="jobs" class="tab">
 <h2>Available Jobs</h2>
-<button class="action" onclick="loadJobs()">Refresh</button><br><br>
-
-<label><b>Upload Resume File</b></label><br>
 <input type="file" id="resumeFile" accept=".pdf"><br><br>
-
 <div id="jobList"></div>
-</div>
-
-<!-- UNAPPLIED -->
-<div id="unapplied" class="tab">
-<h2>Unapplied Jobs</h2>
-<button class="action" onclick="renderUnapplied()">Refresh</button>
-<div id="unappliedList"></div>
 </div>
 
 <!-- APPLIED -->
 <div id="applied" class="tab">
 <h2>Applied Jobs</h2>
-<button class="action" onclick="renderApplied()">Refresh</button>
 <div id="appliedList"></div>
 </div>
 
 <!-- ANALYTICS -->
 <div id="analytics" class="tab">
-<h2>Analytics Dashboard</h2>
-<button class="action" onclick="renderAnalytics()">Refresh</button>
+<h2>Application Analytics</h2>
 <div class="dashboard">
-<canvas id="c1"></canvas>
-<canvas id="c2"></canvas>
-<canvas id="c3"></canvas>
-<canvas id="c4"></canvas>
-<canvas id="c5"></canvas>
+<canvas id="funnel"></canvas>
+<canvas id="trend"></canvas>
+<canvas id="companies"></canvas>
+<canvas id="conversion"></canvas>
 </div>
 </div>
 
 <!-- CHATGPT -->
 <div id="chat" class="tab">
 <h2>ChatGPT Assistant</h2>
-<textarea id="chatInput" style="width:100%;height:90px"
-placeholder="Ask about interviews, resume, job strategy..."></textarea><br>
-<button class="action" onclick="chat()">Ask</button>
-<div id="chatOutput" style="margin-top:15px"></div>
+<textarea id="chatInput" style="width:100%;height:80px"></textarea><br>
+<button class="action" onclick="ask()">Ask</button>
+<div id="chatOutput"></div>
 </div>
 
 <script>
-
-let resumeBytes=null;
-
-/* Resume upload */
-document.getElementById("resumeFile").addEventListener("change", async e=>{
-resumeBytes=await e.target.files[0].arrayBuffer();
-});
 
 /* Tabs */
 function showTab(id){
@@ -115,71 +81,64 @@ document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
 document.getElementById(id).classList.add('active');
 if(id==="jobs") loadJobs();
 if(id==="applied") renderApplied();
-if(id==="unapplied") renderUnapplied();
 if(id==="analytics") renderAnalytics();
 }
 
+/* Resume upload */
+let resumeBytes=null;
+resumeFile.addEventListener("change",async e=>{
+resumeBytes=await e.target.files[0].arrayBuffer();
+});
+
 /* Load jobs */
 async function loadJobs(){
+
 const res=await fetch("/api/jobs");
 const jobs=await res.json();
+
 localStorage.setItem("allJobs",JSON.stringify(jobs));
+
 jobList.innerHTML="";
 jobs.forEach(j=>{
-jobList.innerHTML+=createJobCard(j);
-});
-}
-
-/* Job card with ALL buttons */
-function createJobCard(j){
-return `
+jobList.innerHTML+=`
 <div class="job">
 
 <div class="title">${j.title}</div>
 <div class="small">${j.company}</div>
 <div class="small">${j.location}</div>
 <div class="small">Salary: ${j.salary}</div>
-<div class="small"><b>Skills:</b> ${j.skills}</div>
+<div class="small"><b>Skills Needed:</b> ${j.skills}</div>
+<div class="small"><b>Job Description:</b> ${j.description}</div>
 
 <a href="${j.source}" target="_blank">
 <button class="action">Apply</button>
 </a>
 
 <button class="action"
-onclick="downloadResume('${encodeURIComponent(j.skills)}','${encodeURIComponent(j.description)}')">
-Download Optimized Resume (PDF)
-</button>
-
-<button class="action"
 onclick="markApplied('${j.title}','${j.company}')">
 Mark Applied
 </button>
 
+<button class="action"
+onclick="downloadResume('${encodeURIComponent(j.skills)}','${encodeURIComponent(j.description)}')">
+Download Optimized Resume (PDF)
+</button>
+
 </div>`;
+});
 }
 
-/* Resume optimizer (PDF) */
+/* Resume optimizer */
 async function downloadResume(sk,desc){
-
-if(!resumeBytes){
-alert("Upload resume file first");
-return;
-}
-
-const { PDFDocument, StandardFonts, rgb } = PDFLib;
+if(!resumeBytes){alert("Upload resume first");return;}
+const {PDFDocument,StandardFonts,rgb}=PDFLib;
 const pdf=await PDFDocument.load(resumeBytes);
 const page=pdf.addPage();
 const font=await pdf.embedFont(StandardFonts.Helvetica);
-
-const text="Relevant Skills:\n"+decodeURIComponent(sk)+"\n\nJob Description:\n"+decodeURIComponent(desc);
+const text="Skills:\n"+decodeURIComponent(sk)+"\n\nJD:\n"+decodeURIComponent(desc);
 const lines=text.match(/.{1,90}/g);
-
 let y=750;
-lines.forEach(l=>{
-page.drawText(l,{x:40,y:y,size:12,font,color:rgb(0,0,0)});
-y-=18;
-});
-
+lines.forEach(l=>{page.drawText(l,{x:40,y:y,size:12,font,color:rgb(0,0,0)});y-=18;});
 const bytes=await pdf.save();
 const blob=new Blob([bytes],{type:"application/pdf"});
 const link=document.createElement("a");
@@ -188,20 +147,12 @@ link.download="Optimized_Resume.pdf";
 link.click();
 }
 
-/* Applied tracking */
+/* Applied */
 function markApplied(title,company){
 let a=JSON.parse(localStorage.getItem("applied")||"[]");
-a.push({title,company});
+a.push({title,company,date:new Date()});
 localStorage.setItem("applied",JSON.stringify(a));
 renderApplied();
-}
-
-function unmark(i){
-let a=JSON.parse(localStorage.getItem("applied")||"[]");
-a.splice(i,1);
-localStorage.setItem("applied",JSON.stringify(a));
-renderApplied();
-renderUnapplied();
 }
 
 function renderApplied(){
@@ -215,32 +166,68 @@ appliedList.innerHTML+=`
 });
 }
 
-/* Unapplied */
-function renderUnapplied(){
-let all=JSON.parse(localStorage.getItem("allJobs")||"[]");
-let applied=JSON.parse(localStorage.getItem("applied")||"[]");
-unappliedList.innerHTML="";
-all.forEach(j=>{
-const found=applied.find(a=>a.title===j.title && a.company===j.company);
-if(!found) unappliedList.innerHTML+=createJobCard(j);
-});
-}
-
-/* Analytics */
-function renderAnalytics(){
+function unmark(i){
 let a=JSON.parse(localStorage.getItem("applied")||"[]");
-new Chart(c1,{type:'doughnut',data:{labels:["Applied"],datasets:[{data:[a.length]}]}});
-new Chart(c2,{type:'bar',data:{labels:a.map(x=>x.company),datasets:[{data:a.map(()=>1)}]}});
-new Chart(c3,{type:'line',data:{labels:a.map((_,i)=>i+1),datasets:[{data:a.map((_,i)=>i+1)}]}});
-new Chart(c4,{type:'pie',data:{labels:["Applied"],datasets:[{data:[a.length]}]}});
-new Chart(c5,{type:'radar',data:{labels:["Consistency","Speed","Coverage"],datasets:[{data:[a.length,3,4]}]}});
+a.splice(i,1);
+localStorage.setItem("applied",JSON.stringify(a));
+renderApplied();
 }
 
-/* ChatGPT placeholder */
-function chat(){
-chatOutput.innerHTML="ChatGPT integration ready.";
+/* Analytics dashboards */
+function renderAnalytics(){
+
+let applied=JSON.parse(localStorage.getItem("applied")||"[]");
+
+new Chart(funnel,{
+type:'bar',
+data:{labels:["Viewed","Applied"],
+datasets:[{data:[20,applied.length]}]}
+});
+
+new Chart(trend,{
+type:'line',
+data:{
+labels:applied.map(x=>new Date(x.date).toLocaleDateString()),
+datasets:[{data:applied.map((_,i)=>i+1)}]
+}
+});
+
+new Chart(companies,{
+type:'pie',
+data:{
+labels:applied.map(x=>x.company),
+datasets:[{data:applied.map(()=>1)}]
+}
+});
+
+new Chart(conversion,{
+type:'doughnut',
+data:{
+labels:["Applied","Remaining"],
+datasets:[{data:[applied.length,20-applied.length]}]
+}
+});
+
 }
 
+/* ChatGPT */
+async function ask(){
+
+const res=await fetch("/chat",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+messages:[
+{role:"system",content:"You are a career coach."},
+{role:"user",content:chatInput.value}
+]
+})
+});
+
+const data=await res.json();
+chatOutput.innerText=data.choices[0].message.content;
+
+}
 </script>
 </body>
 </html>
