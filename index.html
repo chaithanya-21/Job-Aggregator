@@ -5,190 +5,230 @@
 <title>Job Dashboard</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
 
 <style>
 body{font-family:Segoe UI;margin:0;background:#eef3f8}
-.nav{display:flex;gap:20px;padding:15px 30px;background:white;box-shadow:0 2px 6px rgba(0,0,0,0.08)}
-.nav button{border:none;background:none;font-size:15px;cursor:pointer}
-.tab{display:none;padding:30px}
+
+.nav{
+display:flex;gap:18px;padding:15px 25px;background:white;
+box-shadow:0 2px 6px rgba(0,0,0,0.08)
+}
+
+.nav button{
+border:none;background:none;font-size:14px;cursor:pointer
+}
+
+.tab{display:none;padding:25px}
 .active{display:block}
-.job{background:white;border-radius:8px;padding:18px;margin-bottom:14px;box-shadow:0 2px 6px rgba(0,0,0,0.08)}
-button.action{margin-top:6px;padding:7px 11px;border:none;border-radius:5px;background:#0a66c2;color:white;cursor:pointer}
-input{padding:6px;margin:5px 0}
+
+.job{
+background:white;border-radius:8px;padding:16px;margin-bottom:12px;
+box-shadow:0 2px 6px rgba(0,0,0,0.08)
+}
+
+.title{font-weight:600;font-size:17px}
+.small{font-size:13px;color:#555;margin-top:3px}
+
+button.action{
+margin-top:6px;padding:7px 11px;border:none;border-radius:5px;
+background:#0a66c2;color:white;cursor:pointer
+}
+
+canvas{
+max-width:300px!important;
+max-height:220px!important;
+margin:15px
+}
+
+.dashboard{
+display:flex;
+flex-wrap:wrap;
+gap:20px
+}
 </style>
 </head>
 
 <body>
 
 <div class="nav">
+<button onclick="showTab('admin')">Admin</button>
 <button onclick="showTab('jobs')">Available Jobs</button>
+<button onclick="showTab('unapplied')">Unapplied Jobs</button>
 <button onclick="showTab('applied')">Applied Jobs</button>
 <button onclick="showTab('analytics')">Analytics</button>
-<button onclick="showTab('chat')">Interview Prep</button>
+<button onclick="showTab('chat')">ChatGPT</button>
 </div>
 
-<!-- JOBS -->
-<div id="jobs" class="tab active">
-<h2>Search Jobs</h2>
-<input id="roleSearch" placeholder="Search job role...">
-<button class="action" onclick="loadJobs()">Search</button>
-<input type="file" id="resumeFile" accept=".pdf">
+<!-- ADMIN -->
+<div id="admin" class="tab active">
+<h2>Admin Panel</h2>
+<button class="action" onclick="location.reload()">Refresh</button>
+<p>Settings placeholder — can expand later.</p>
+</div>
+
+<!-- AVAILABLE JOBS -->
+<div id="jobs" class="tab">
+<h2>Available Jobs</h2>
+<button class="action" onclick="loadJobs()">Refresh</button><br><br>
+
+<label><b>Upload Resume File</b></label><br>
+<input type="file" id="resumeFile" accept=".pdf"><br><br>
+
 <div id="jobList"></div>
+</div>
+
+<!-- UNAPPLIED JOBS -->
+<div id="unapplied" class="tab">
+<h2>Unapplied Jobs</h2>
+<button class="action" onclick="renderUnapplied()">Refresh</button>
+<div id="unappliedList"></div>
 </div>
 
 <!-- APPLIED -->
 <div id="applied" class="tab">
 <h2>Applied Jobs</h2>
+<button class="action" onclick="renderApplied()">Refresh</button>
 <div id="appliedList"></div>
 </div>
 
 <!-- ANALYTICS -->
 <div id="analytics" class="tab">
 <h2>Analytics Dashboard</h2>
-<canvas id="chart1"></canvas>
-<canvas id="chart2"></canvas>
-<canvas id="chart3"></canvas>
-<canvas id="chart4"></canvas>
-<canvas id="chart5"></canvas>
+<button class="action" onclick="renderAnalytics()">Refresh</button>
+
+<div class="dashboard">
+<canvas id="c1"></canvas>
+<canvas id="c2"></canvas>
+<canvas id="c3"></canvas>
+<canvas id="c4"></canvas>
+<canvas id="c5"></canvas>
+</div>
 </div>
 
-<!-- INTERVIEW -->
+<!-- CHATGPT -->
 <div id="chat" class="tab">
-<h2>Interview Simulator</h2>
-<button onclick="startQuiz()">Start Interview</button>
-<div id="quiz"></div>
+<h2>ChatGPT Assistant</h2>
+<button class="action" onclick="location.reload()">Refresh</button><br><br>
+
+<textarea id="chatInput" style="width:100%;height:90px"
+placeholder="Ask anything about interview prep, resume, job strategy..."></textarea><br>
+<button class="action" onclick="chat()">Ask ChatGPT</button>
+
+<div id="chatOutput" style="margin-top:15px"></div>
 </div>
 
 <script>
 
-/* Tabs */
+/* TAB SWITCH */
 function showTab(id){
 document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
 document.getElementById(id).classList.add('active');
+
+if(id==="jobs") loadJobs();
 if(id==="applied") renderApplied();
+if(id==="unapplied") renderUnapplied();
 if(id==="analytics") renderAnalytics();
 }
 
-/* Resume upload */
-let resumeBytes=null;
-resumeFile.addEventListener("change",async e=>{
-resumeBytes=await e.target.files[0].arrayBuffer();
-});
-
-/* Load jobs */
+/* LOAD JOBS */
 async function loadJobs(){
-const role=roleSearch.value||"Business Analyst";
-const res=await fetch(`/api/jobs?role=${role}`);
+
+const res=await fetch("/api/jobs");
 const jobs=await res.json();
 
+localStorage.setItem("allJobs",JSON.stringify(jobs));
+
 jobList.innerHTML="";
+
 jobs.forEach(j=>{
-const div=document.createElement("div");
-div.className="job";
-div.innerHTML=`
-<b>${j.title}</b><br>${j.company}<br>${j.location}<br>
-<button class="action" onclick="markApplied('${j.title}','${j.company}')">Mark Applied</button>
-<button class="action" onclick="generateATS('${encodeURIComponent(j.skills)}','${encodeURIComponent(j.description)}')">Download Resume</button>
-<a href="${j.source}" target="_blank"><button class="action">Apply</button></a>
-`;
-jobList.appendChild(div);
+jobList.innerHTML+=createJobCard(j);
 });
+
 }
 
-/* Applied storage */
+/* CREATE JOB CARD */
+function createJobCard(j){
+
+return `
+<div class="job">
+
+<div class="title">${j.title}</div>
+<div class="small">${j.company}</div>
+<div class="small">${j.location}</div>
+<div class="small">Salary: ${j.salary}</div>
+<div class="small"><b>Skills:</b> ${j.skills}</div>
+
+<a href="${j.source}" target="_blank">
+<button class="action">Apply</button>
+</a>
+
+<button class="action" onclick="markApplied('${j.title}','${j.company}')">
+Mark Applied
+</button>
+
+</div>`;
+}
+
+/* MARK APPLIED */
 function markApplied(title,company){
 let a=JSON.parse(localStorage.getItem("applied")||"[]");
-a.push({title,company,date:new Date()});
+a.push({title,company});
 localStorage.setItem("applied",JSON.stringify(a));
 renderApplied();
 }
 
-function unmark(index){
-let a=JSON.parse(localStorage.getItem("applied")||"[]");
-a.splice(index,1);
-localStorage.setItem("applied",JSON.stringify(a));
-renderApplied();
-}
-
+/* RENDER APPLIED */
 function renderApplied(){
 let a=JSON.parse(localStorage.getItem("applied")||"[]");
 appliedList.innerHTML="";
 a.forEach((j,i)=>{
-appliedList.innerHTML+=`<div class="job">${j.title} - ${j.company}
-<button class="action" onclick="unmark(${i})">Unmark</button></div>`;
+appliedList.innerHTML+=`
+<div class="job">${j.title} - ${j.company}
+<button class="action" onclick="unmark(${i})">Unmark</button>
+</div>`;
 });
 }
 
-/* 5 analytics dashboards */
+/* UNMARK */
+function unmark(i){
+let a=JSON.parse(localStorage.getItem("applied")||"[]");
+a.splice(i,1);
+localStorage.setItem("applied",JSON.stringify(a));
+renderApplied();
+renderUnapplied();
+}
+
+/* UNAPPLIED LIST */
+function renderUnapplied(){
+let all=JSON.parse(localStorage.getItem("allJobs")||"[]");
+let applied=JSON.parse(localStorage.getItem("applied")||"[]");
+
+unappliedList.innerHTML="";
+
+all.forEach(j=>{
+const found=applied.find(a=>a.title===j.title && a.company===j.company);
+if(!found) unappliedList.innerHTML+=createJobCard(j);
+});
+}
+
+/* ANALYTICS DASHBOARD */
 function renderAnalytics(){
+
 let a=JSON.parse(localStorage.getItem("applied")||"[]");
 
-new Chart(chart1,{type:'doughnut',data:{labels:["Applied"],datasets:[{data:[a.length]}]}});
-new Chart(chart2,{type:'line',data:{labels:a.map(x=>new Date(x.date).toLocaleDateString()),datasets:[{data:a.map((_,i)=>i+1)}]}});
-new Chart(chart3,{type:'bar',data:{labels:a.map(x=>x.company),datasets:[{data:a.map(()=>1)}]}});
-new Chart(chart4,{type:'pie',data:{labels:["Applied"],datasets:[{data:[a.length]}]}});
-new Chart(chart5,{type:'radar',data:{labels:["Consistency","Volume","Spread"],datasets:[{data:[a.length,5,3]}]}});
+new Chart(c1,{type:'doughnut',data:{labels:["Applied"],datasets:[{data:[a.length]}]}});
+new Chart(c2,{type:'bar',data:{labels:a.map(x=>x.company),datasets:[{data:a.map(()=>1)}]}});
+new Chart(c3,{type:'line',data:{labels:a.map((_,i)=>i+1),datasets:[{data:a.map((_,i)=>i+1)}]}});
+new Chart(c4,{type:'pie',data:{labels:["Applied"],datasets:[{data:[a.length]}]}});
+new Chart(c5,{type:'radar',data:{labels:["Consistency","Speed","Coverage"],datasets:[{data:[a.length,3,4]}]}});
 }
 
-/* Resume tailoring */
-async function generateATS(sk,desc){
-if(!resumeBytes){alert("Upload resume first");return;}
-const {PDFDocument,StandardFonts,rgb}=PDFLib;
-const pdf=await PDFDocument.load(resumeBytes);
-const page=pdf.addPage();
-const font=await pdf.embedFont(StandardFonts.Helvetica);
-const text="Skills:\n"+decodeURIComponent(sk)+"\n\nJD:\n"+decodeURIComponent(desc);
-const lines=text.match(/.{1,90}/g);
-let y=750; lines.forEach(l=>{page.drawText(l,{x:40,y:y,size:12,font,color:rgb(0,0,0)});y-=18;});
-const bytes=await pdf.save();
-const blob=new Blob([bytes],{type:"application/pdf"});
-const link=document.createElement("a");
-link.href=URL.createObjectURL(blob);
-link.download="Tailored.pdf";
-link.click();
-}
-
-/* Interview quiz */
-const questions=[
-{q:"Explain difference between KPI & metric",o:["Same","KPI is strategic","Metric always financial","None"],a:1},
-{q:"What is overfitting?",o:["Good model","Memorization","Data error","Sampling"],a:1},
-{q:"Agile sprint goal?",o:["Deadline","Deliver value","Documentation","Budget"],a:1},
-{q:"STAR method used for?",o:["Coding","Behavioral answers","Testing","Reports"],a:1},
-{q:"Stakeholder mapping helps?",o:["Coding","Prioritization","Debugging","Hiring"],a:1},
-{q:"Confusion matrix measures?",o:["Revenue","Classification accuracy","Budget","Schedule"],a:1},
-{q:"What is MVP?",o:["Full product","Minimum version","Final version","Test case"],a:1},
-{q:"Regression used for?",o:["Classification","Prediction numeric","Sorting","Ranking"],a:1},
-{q:"Primary project constraint?",o:["Scope,time,cost","Team","Tools","Docs"],a:0},
-{q:"SQL JOIN purpose?",o:["Merge tables","Delete","Sort","Index"],a:0},
-{q:"Root cause analysis tool?",o:["Fishbone","PowerBI","Agile","Scrum"],a:0},
-{q:"Variance measures?",o:["Spread","Mean","Median","Mode"],a:0},
-{q:"A/B testing compares?",o:["Two variants","Teams","Costs","Servers"],a:0},
-{q:"What is backlog?",o:["Future tasks","Archive","Report","Bug"],a:0},
-{q:"Data normalization goal?",o:["Consistency","Speed","UI","Security"],a:0}
-];
-
-function startQuiz(){
-quiz.innerHTML="";
-questions.forEach((q,i)=>{
-let html=`<p>${i+1}. ${q.q}</p>`;
-q.o.forEach((opt,j)=>{
-html+=`<label><input type="radio" name="q${i}" value="${j}">${opt}</label><br>`;
-});
-quiz.innerHTML+=html;
-});
-quiz.innerHTML+=`<button onclick="submitQuiz()">Submit</button>`;
-}
-
-function submitQuiz(){
-let score=0;
-questions.forEach((q,i)=>{
-const ans=document.querySelector(`input[name=q${i}]:checked`);
-if(ans && parseInt(ans.value)===q.a) score++;
-});
-alert("Score: "+score+"/15");
+/* CHATGPT PLACEHOLDER */
+function chat(){
+chatOutput.innerHTML="ChatGPT integration ready — connect API next.";
 }
 
 </script>
+
 </body>
 </html>
