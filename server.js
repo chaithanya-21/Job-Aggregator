@@ -1,7 +1,6 @@
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
-const fs = require("fs");
 require("dotenv").config();
 
 const app = express();
@@ -9,27 +8,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
 
-/* 🔹 SERVE HOMEPAGE */
-app.get("/", (req,res)=>{
-    res.sendFile(__dirname + "/index.html");
-});
-
-/* 🔹 SERVE ADMIN PAGE */
-app.get("/admin", (req,res)=>{
-    res.sendFile(__dirname + "/admin.html");
-});
-
-/* 🔹 SETTINGS ROUTES */
-app.get("/settings",(req,res)=>{
-    res.sendFile(__dirname + "/settings.json");
-});
-
-app.post("/settings",(req,res)=>{
-    fs.writeFileSync("settings.json", JSON.stringify(req.body,null,2));
-    res.send({status:"saved"});
-});
-
-/* 🔹 JOB API */
+app.get("/", (req,res)=>res.sendFile(__dirname+"/index.html"));
 
 const countryCodeMap={
     "India":"in",
@@ -64,7 +43,8 @@ app.get("/api/jobs", async(req,res)=>{
             title:job.title||"",
             company:job.company?.display_name||"",
             salary:job.salary_average||"Not specified",
-            skills:job.description?.substring(0,180)||"",
+            skills:job.description?.substring(0,120)||"",
+            description:job.description?.substring(0,600)||"",
             source:job.redirect_url||"#",
             location:`${job.location?.area[1]||""}, ${job.location?.area[0]||""}`
 
