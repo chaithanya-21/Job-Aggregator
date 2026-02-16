@@ -11,7 +11,8 @@ body{font-family:Segoe UI;background:#eef3f8;margin:0}
 box-shadow:0 2px 6px rgba(0,0,0,0.08)}
 .title{font-weight:600;font-size:18px}
 .small{font-size:14px;color:#555;margin-top:4px}
-button{margin-top:8px;padding:8px 12px;border:none;border-radius:5px;background:#0a66c2;color:white}
+button{margin-top:8px;padding:8px 12px;border:none;border-radius:5px;background:#0a66c2;color:white;cursor:pointer}
+button:hover{background:#004182}
 </style>
 </head>
 
@@ -21,6 +22,7 @@ button{margin-top:8px;padding:8px 12px;border:none;border-radius:5px;background:
 
 <h2>Upload Resume Once</h2>
 <input type="file" id="resumeFile">
+<p id="status"></p>
 
 <hr>
 
@@ -32,10 +34,14 @@ button{margin-top:8px;padding:8px 12px;border:none;border-radius:5px;background:
 
 let resumeText="";
 
+/* 🔹 Upload resume and store in memory */
 document.getElementById("resumeFile").addEventListener("change", async e=>{
-resumeText=await e.target.files[0].text();
+const file=e.target.files[0];
+resumeText=await file.text();
+document.getElementById("status").innerText="Resume uploaded successfully ✔";
 });
 
+/* 🔹 Load jobs */
 async function loadJobs(){
 
 const res=await fetch("/api/jobs");
@@ -56,16 +62,18 @@ card.innerHTML=`
 <div class="small">Salary: ${j.salary}</div>
 <div class="small"><b>Skills Needed:</b> ${j.skills}</div>
 
-<a href="${j.source}" target="_blank">Apply</a><br>
+<br>
 
-<button onclick="optimize('${encodeURIComponent(j.skills)}')">
-Upload resume & Generate copy
+<a href="${j.source}" target="_blank">
+<button>Apply to Job</button>
+</a>
+
+<button onclick="generateResume('${encodeURIComponent(j.skills)}')">
+Generate Optimized Resume
 </button>
 
-<label>
-<input type="checkbox"
-onclick="logApplication('${j.title}','${j.company}','${j.location}','${j.salary}','${j.source}')">
-Mark as Applied
+<label style="margin-left:10px">
+<input type="checkbox"> Mark as Applied
 </label>
 
 `;
@@ -76,7 +84,8 @@ jobsDiv.appendChild(card);
 
 }
 
-function optimize(skillsEncoded){
+/* 🔹 Resume optimizer */
+function generateResume(skillsEncoded){
 
 if(!resumeText){
 alert("Upload resume first");
@@ -94,18 +103,9 @@ link.click();
 
 }
 
-async function logApplication(title,company,location,salary,link){
-
-await fetch("/log-job",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({title,company,location,salary,link})
-});
-
-}
-
 loadJobs();
 
 </script>
+
 </body>
 </html>
