@@ -21,6 +21,7 @@ box-shadow:0 2px 6px rgba(0,0,0,0.08)}
 button.action{margin-top:6px;padding:7px 11px;border:none;border-radius:5px;background:#0a66c2;color:white;cursor:pointer}
 canvas{max-width:320px!important;max-height:220px!important;margin:15px}
 .dashboard{display:flex;flex-wrap:wrap;gap:20px}
+input.search{padding:6px;width:250px;margin-bottom:10px}
 </style>
 </head>
 
@@ -43,34 +44,39 @@ canvas{max-width:320px!important;max-height:220px!important;margin:15px}
 
 <!-- JOBS -->
 <div id="jobs" class="tab">
+
 <h2>Available Jobs</h2>
 
+<input id="roleSearch" class="search" placeholder="Search job role...">
+<button class="action" onclick="loadJobs()">Search</button>
+
+<br><br>
+
 <button class="action" onclick="loadJobs()">Refresh</button>
-<button class="action" onclick="nextPage()">Next Page</button><br><br>
+<button class="action" onclick="nextPage()">Next Page</button>
+
+<br><br>
 
 <label><b>Upload Resume File</b></label><br>
 <input type="file" id="resumeFile" accept=".pdf"><br><br>
 
 <div id="jobList"></div>
+
 </div>
 
 <!-- APPLIED -->
 <div id="applied" class="tab">
 <h2>Applied Jobs</h2>
-
 <button class="action" onclick="renderApplied()">Refresh</button>
 <button class="action" onclick="renderApplied()">Next Page</button>
-
 <div id="appliedList"></div>
 </div>
 
 <!-- ANALYTICS -->
 <div id="analytics" class="tab">
 <h2>Analytics Dashboard</h2>
-
 <button class="action" onclick="renderAnalytics()">Refresh</button>
 <button class="action" onclick="renderAnalytics()">Next Page</button>
-
 <div class="dashboard">
 <canvas id="funnel"></canvas>
 <canvas id="trend"></canvas>
@@ -82,10 +88,8 @@ canvas{max-width:320px!important;max-height:220px!important;margin:15px}
 <!-- CHATGPT -->
 <div id="chat" class="tab">
 <h2>ChatGPT Assistant</h2>
-
 <button class="action" onclick="ask()">Refresh</button>
 <button class="action" onclick="ask()">Next Page</button><br><br>
-
 <textarea id="chatInput" style="width:100%;height:80px"></textarea><br>
 <button class="action" onclick="ask()">Ask</button>
 <div id="chatOutput"></div>
@@ -100,7 +104,6 @@ resumeFile.addEventListener("change",async e=>{
 resumeBytes=await e.target.files[0].arrayBuffer();
 });
 
-/* Tab switching */
 function showTab(id){
 document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
 document.getElementById(id).classList.add('active');
@@ -109,16 +112,14 @@ if(id==="applied") renderApplied();
 if(id==="analytics") renderAnalytics();
 }
 
-/* Pagination */
-function nextPage(){
-page++;
-loadJobs();
-}
+function nextPage(){ page++; loadJobs(); }
 
-/* Load jobs */
+/* LOAD JOBS WITH SEARCH */
 async function loadJobs(){
 
-const res=await fetch(`/api/jobs?page=${page}`);
+const role=document.getElementById("roleSearch").value || "Business Analyst";
+
+const res=await fetch(`/api/jobs?page=${page}&role=${encodeURIComponent(role)}`);
 const jobs=await res.json();
 
 jobList.innerHTML="";
@@ -172,7 +173,7 @@ link.download="Optimized_Resume.pdf";
 link.click();
 }
 
-/* Applied tracking */
+/* Applied */
 function markApplied(title,company){
 let a=JSON.parse(localStorage.getItem("applied")||"[]");
 a.push({title,company,date:new Date()});
@@ -201,7 +202,6 @@ renderApplied();
 /* Analytics */
 function renderAnalytics(){
 let applied=JSON.parse(localStorage.getItem("applied")||"[]");
-
 new Chart(funnel,{type:'bar',data:{labels:["Viewed","Applied"],datasets:[{data:[20,applied.length]}]}});
 new Chart(trend,{type:'line',data:{labels:applied.map(x=>new Date(x.date).toLocaleDateString()),datasets:[{data:applied.map((_,i)=>i+1)}]}});
 new Chart(companies,{type:'pie',data:{labels:applied.map(x=>x.company),datasets:[{data:applied.map(()=>1)}]}});
