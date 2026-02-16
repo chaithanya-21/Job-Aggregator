@@ -9,19 +9,22 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
 
-// Serve homepage
+// Homepage
 app.get("/", (req,res)=>{
     res.sendFile(__dirname + "/index.html");
 });
 
+// Admin page
+app.get("/admin", (req,res)=>{
+    res.sendFile(__dirname + "/admin.html");
+});
+
 // SETTINGS ROUTES
 
-// Get settings
-app.get("/settings", (req,res)=>{
+app.get("/settings",(req,res)=>{
     res.sendFile(__dirname + "/settings.json");
 });
 
-// Save settings
 app.post("/settings",(req,res)=>{
     fs.writeFileSync("settings.json", JSON.stringify(req.body,null,2));
     res.send({status:"saved"});
@@ -29,7 +32,7 @@ app.post("/settings",(req,res)=>{
 
 // JOB API
 
-const countryCodeMap = {
+const countryCodeMap={
     "India":"in",
     "United States":"us",
     "United Kingdom":"gb",
@@ -37,14 +40,14 @@ const countryCodeMap = {
     "Canada":"ca"
 };
 
-app.get("/api/jobs", async (req,res)=>{
+app.get("/api/jobs", async(req,res)=>{
 
-    const role=req.query.role || "Business Analyst";
-    const country=req.query.country || "India";
-    const page=req.query.page || 1;
-    const modeFilter=req.query.mode || "All";
+    const role=req.query.role||"Business Analyst";
+    const country=req.query.country||"India";
+    const page=req.query.page||1;
+    const modeFilter=req.query.mode||"All";
 
-    const countryCode=countryCodeMap[country] || "in";
+    const countryCode=countryCodeMap[country]||"in";
     const url=`https://api.adzuna.com/v1/api/jobs/${countryCode}/search/${page}`;
 
     try{
@@ -74,7 +77,7 @@ app.get("/api/jobs", async (req,res)=>{
                 source:job.redirect_url||"#",
                 country:job.location?.area[0]||"",
                 state:job.location?.area[1]||""
-            }
+            };
         });
 
         if(modeFilter!=="All"){
@@ -87,6 +90,7 @@ app.get("/api/jobs", async (req,res)=>{
         console.error(err.message);
         res.status(500).json({error:"Error fetching jobs"});
     }
+
 });
 
 const PORT=process.env.PORT||5000;
