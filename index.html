@@ -9,52 +9,35 @@
 
 <style>
 body{font-family:Segoe UI;margin:0;background:#eef3f8}
-.nav{display:flex;gap:20px;padding:15px 30px;background:white;
-box-shadow:0 2px 6px rgba(0,0,0,0.08)}
+.nav{display:flex;gap:20px;padding:15px 30px;background:white;box-shadow:0 2px 6px rgba(0,0,0,0.08)}
 .nav button{border:none;background:none;font-size:15px;cursor:pointer}
 .tab{display:none;padding:30px}
 .active{display:block}
-
-.job{
-background:white;border-radius:8px;padding:18px;margin-bottom:14px;
-box-shadow:0 2px 6px rgba(0,0,0,0.08)
-}
-
-.title{font-weight:600;font-size:18px}
-.small{font-size:14px;color:#555;margin-top:4px}
-button.action{
-margin-top:8px;padding:8px 12px;border:none;border-radius:5px;
-background:#0a66c2;color:white;cursor:pointer
-}
+.job{background:white;border-radius:8px;padding:18px;margin-bottom:14px;box-shadow:0 2px 6px rgba(0,0,0,0.08)}
+button.action{margin-top:6px;padding:7px 11px;border:none;border-radius:5px;background:#0a66c2;color:white;cursor:pointer}
+input{padding:6px;margin:5px 0}
 </style>
 </head>
 
 <body>
 
 <div class="nav">
-<button onclick="showTab('admin')">Admin</button>
 <button onclick="showTab('jobs')">Available Jobs</button>
 <button onclick="showTab('applied')">Applied Jobs</button>
 <button onclick="showTab('analytics')">Analytics</button>
-<button onclick="showTab('custom')">Custom Analytics</button>
 <button onclick="showTab('chat')">Interview Prep</button>
 </div>
 
-<!-- ADMIN -->
-<div id="admin" class="tab active">
-<h2>Admin Panel</h2>
-<p>Edit site settings via admin.html</p>
-</div>
-
-<!-- AVAILABLE JOBS -->
-<div id="jobs" class="tab">
-<h2>Available Jobs</h2>
+<!-- JOBS -->
+<div id="jobs" class="tab active">
+<h2>Search Jobs</h2>
+<input id="roleSearch" placeholder="Search job role...">
+<button class="action" onclick="loadJobs()">Search</button>
 <input type="file" id="resumeFile" accept=".pdf">
-<p id="status"></p>
 <div id="jobList"></div>
 </div>
 
-<!-- APPLIED JOBS -->
+<!-- APPLIED -->
 <div id="applied" class="tab">
 <h2>Applied Jobs</h2>
 <div id="appliedList"></div>
@@ -62,181 +45,148 @@ background:#0a66c2;color:white;cursor:pointer
 
 <!-- ANALYTICS -->
 <div id="analytics" class="tab">
-<h2>Application Analytics</h2>
+<h2>Analytics Dashboard</h2>
 <canvas id="chart1"></canvas>
-</div>
-
-<!-- CUSTOM ANALYTICS -->
-<div id="custom" class="tab">
-<h2>Custom Analytics</h2>
-<input id="filterInput" placeholder="Filter jobs by keyword">
-<button class="action" onclick="filterJobs()">Generate Report</button>
-<div id="customResults"></div>
+<canvas id="chart2"></canvas>
+<canvas id="chart3"></canvas>
+<canvas id="chart4"></canvas>
+<canvas id="chart5"></canvas>
 </div>
 
 <!-- INTERVIEW -->
 <div id="chat" class="tab">
-<h2>Interview Prep</h2>
-<select id="roleSelect">
-<option>Business Analyst</option>
-<option>Consultant</option>
-<option>AI Engineer</option>
-</select>
-<button class="action" onclick="generateQuestions()">Generate Questions</button>
-<ul id="questions"></ul>
+<h2>Interview Simulator</h2>
+<button onclick="startQuiz()">Start Interview</button>
+<div id="quiz"></div>
 </div>
 
 <script>
 
-let resumeBytes=null;
-
-/* Upload resume */
-document.getElementById("resumeFile").addEventListener("change", async e=>{
-resumeBytes=await e.target.files[0].arrayBuffer();
-status.innerText="Resume uploaded ✔";
-});
-
-/* Tab switch */
+/* Tabs */
 function showTab(id){
 document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
 document.getElementById(id).classList.add('active');
-
-if(id==="jobs") loadJobs();
 if(id==="applied") renderApplied();
 if(id==="analytics") renderAnalytics();
 }
 
-/* Load jobs with FULL layout restored */
-async function loadJobs(){
+/* Resume upload */
+let resumeBytes=null;
+resumeFile.addEventListener("change",async e=>{
+resumeBytes=await e.target.files[0].arrayBuffer();
+});
 
-const res=await fetch("/api/jobs");
+/* Load jobs */
+async function loadJobs(){
+const role=roleSearch.value||"Business Analyst";
+const res=await fetch(`/api/jobs?role=${role}`);
 const jobs=await res.json();
 
 jobList.innerHTML="";
-
 jobs.forEach(j=>{
-
 const div=document.createElement("div");
 div.className="job";
-
 div.innerHTML=`
-
-<div class="title">${j.title}</div>
-<div class="small">${j.company}</div>
-<div class="small">${j.location}</div>
-<div class="small">Salary: ${j.salary}</div>
-<div class="small"><b>Skills Needed:</b> ${j.skills}</div>
-<div class="small"><b>Job Description:</b> ${j.description}</div>
-
-<a href="${j.source}" target="_blank">
-<button class="action">Apply</button>
-</a>
-
-<button class="action" onclick="generateATSResume('${encodeURIComponent(j.skills)}','${encodeURIComponent(j.description)}')">
-Download Tailored Resume
-</button>
-
-<button class="action" onclick="markApplied('${j.title}','${j.company}')">
-Mark Applied
-</button>
-
+<b>${j.title}</b><br>${j.company}<br>${j.location}<br>
+<button class="action" onclick="markApplied('${j.title}','${j.company}')">Mark Applied</button>
+<button class="action" onclick="generateATS('${encodeURIComponent(j.skills)}','${encodeURIComponent(j.description)}')">Download Resume</button>
+<a href="${j.source}" target="_blank"><button class="action">Apply</button></a>
 `;
-
 jobList.appendChild(div);
-
 });
-
 }
 
-/* Mark applied */
+/* Applied storage */
 function markApplied(title,company){
-let applied=JSON.parse(localStorage.getItem("applied")||"[]");
-applied.push({title,company});
-localStorage.setItem("applied",JSON.stringify(applied));
+let a=JSON.parse(localStorage.getItem("applied")||"[]");
+a.push({title,company,date:new Date()});
+localStorage.setItem("applied",JSON.stringify(a));
 renderApplied();
 }
 
-/* Render applied */
+function unmark(index){
+let a=JSON.parse(localStorage.getItem("applied")||"[]");
+a.splice(index,1);
+localStorage.setItem("applied",JSON.stringify(a));
+renderApplied();
+}
+
 function renderApplied(){
-let applied=JSON.parse(localStorage.getItem("applied")||"[]");
+let a=JSON.parse(localStorage.getItem("applied")||"[]");
 appliedList.innerHTML="";
-applied.forEach(a=>{
-appliedList.innerHTML+=`<div class="job">${a.title} - ${a.company}</div>`;
+a.forEach((j,i)=>{
+appliedList.innerHTML+=`<div class="job">${j.title} - ${j.company}
+<button class="action" onclick="unmark(${i})">Unmark</button></div>`;
 });
 }
 
-/* Analytics */
+/* 5 analytics dashboards */
 function renderAnalytics(){
+let a=JSON.parse(localStorage.getItem("applied")||"[]");
 
-let applied=JSON.parse(localStorage.getItem("applied")||"[]").length;
-let total=document.querySelectorAll("#jobList .job").length;
-
-new Chart(chart1,{
-type:'doughnut',
-data:{
-labels:["Applied","Remaining"],
-datasets:[{data:[applied,total-applied]}]
-}
-});
-
+new Chart(chart1,{type:'doughnut',data:{labels:["Applied"],datasets:[{data:[a.length]}]}});
+new Chart(chart2,{type:'line',data:{labels:a.map(x=>new Date(x.date).toLocaleDateString()),datasets:[{data:a.map((_,i)=>i+1)}]}});
+new Chart(chart3,{type:'bar',data:{labels:a.map(x=>x.company),datasets:[{data:a.map(()=>1)}]}});
+new Chart(chart4,{type:'pie',data:{labels:["Applied"],datasets:[{data:[a.length]}]}});
+new Chart(chart5,{type:'radar',data:{labels:["Consistency","Volume","Spread"],datasets:[{data:[a.length,5,3]}]}});
 }
 
-/* Custom analytics */
-function filterJobs(){
-const keyword=filterInput.value.toLowerCase();
-const jobs=document.querySelectorAll("#jobList .job");
-customResults.innerHTML="";
-jobs.forEach(j=>{
-if(j.innerText.toLowerCase().includes(keyword))
-customResults.appendChild(j.cloneNode(true));
-});
-}
-
-/* Interview generator */
-function generateQuestions(){
-const role=roleSelect.value;
-const list=[
-`Tell me about your experience as a ${role}`,
-`Describe a project where you solved a business problem`,
-`What tools do you use in ${role}?`
-];
-questions.innerHTML="";
-list.forEach(q=>questions.innerHTML+=`<li>${q}</li>`);
-}
-
-/* ATS resume generator (same logic as before) */
-async function generateATSResume(skillsEncoded,descEncoded){
-
-if(!resumeBytes){
-alert("Upload resume first");
-return;
-}
-
-const skills=decodeURIComponent(skillsEncoded);
-const description=decodeURIComponent(descEncoded);
-
-const { PDFDocument, StandardFonts, rgb } = PDFLib;
-
+/* Resume tailoring */
+async function generateATS(sk,desc){
+if(!resumeBytes){alert("Upload resume first");return;}
+const {PDFDocument,StandardFonts,rgb}=PDFLib;
 const pdf=await PDFDocument.load(resumeBytes);
 const page=pdf.addPage();
 const font=await pdf.embedFont(StandardFonts.Helvetica);
-
-const text="Relevant Skills:\n"+skills+"\n\nJob Responsibilities:\n"+description;
+const text="Skills:\n"+decodeURIComponent(sk)+"\n\nJD:\n"+decodeURIComponent(desc);
 const lines=text.match(/.{1,90}/g);
-
-let y=750;
-lines.forEach(l=>{
-page.drawText(l,{x:40,y:y,size:12,font,color:rgb(0,0,0)});
-y-=18;
-});
-
+let y=750; lines.forEach(l=>{page.drawText(l,{x:40,y:y,size:12,font,color:rgb(0,0,0)});y-=18;});
 const bytes=await pdf.save();
 const blob=new Blob([bytes],{type:"application/pdf"});
 const link=document.createElement("a");
 link.href=URL.createObjectURL(blob);
-link.download="Tailored_Resume.pdf";
+link.download="Tailored.pdf";
 link.click();
+}
 
+/* Interview quiz */
+const questions=[
+{q:"Explain difference between KPI & metric",o:["Same","KPI is strategic","Metric always financial","None"],a:1},
+{q:"What is overfitting?",o:["Good model","Memorization","Data error","Sampling"],a:1},
+{q:"Agile sprint goal?",o:["Deadline","Deliver value","Documentation","Budget"],a:1},
+{q:"STAR method used for?",o:["Coding","Behavioral answers","Testing","Reports"],a:1},
+{q:"Stakeholder mapping helps?",o:["Coding","Prioritization","Debugging","Hiring"],a:1},
+{q:"Confusion matrix measures?",o:["Revenue","Classification accuracy","Budget","Schedule"],a:1},
+{q:"What is MVP?",o:["Full product","Minimum version","Final version","Test case"],a:1},
+{q:"Regression used for?",o:["Classification","Prediction numeric","Sorting","Ranking"],a:1},
+{q:"Primary project constraint?",o:["Scope,time,cost","Team","Tools","Docs"],a:0},
+{q:"SQL JOIN purpose?",o:["Merge tables","Delete","Sort","Index"],a:0},
+{q:"Root cause analysis tool?",o:["Fishbone","PowerBI","Agile","Scrum"],a:0},
+{q:"Variance measures?",o:["Spread","Mean","Median","Mode"],a:0},
+{q:"A/B testing compares?",o:["Two variants","Teams","Costs","Servers"],a:0},
+{q:"What is backlog?",o:["Future tasks","Archive","Report","Bug"],a:0},
+{q:"Data normalization goal?",o:["Consistency","Speed","UI","Security"],a:0}
+];
+
+function startQuiz(){
+quiz.innerHTML="";
+questions.forEach((q,i)=>{
+let html=`<p>${i+1}. ${q.q}</p>`;
+q.o.forEach((opt,j)=>{
+html+=`<label><input type="radio" name="q${i}" value="${j}">${opt}</label><br>`;
+});
+quiz.innerHTML+=html;
+});
+quiz.innerHTML+=`<button onclick="submitQuiz()">Submit</button>`;
+}
+
+function submitQuiz(){
+let score=0;
+questions.forEach((q,i)=>{
+const ans=document.querySelector(`input[name=q${i}]:checked`);
+if(ans && parseInt(ans.value)===q.a) score++;
+});
+alert("Score: "+score+"/15");
 }
 
 </script>
