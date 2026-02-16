@@ -1,72 +1,78 @@
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
-require("dotenv").config({ path: __dirname + "/.env" });
+require("dotenv").config();
 
 const app = express();
 app.use(cors());
+app.use(express.static(__dirname));   // 👈 serve frontend
+
+// Homepage route
+app.get("/", (req, res) => {
+  res.sendFile(__dirname + "/index.html");
+});
 
 const countryCodeMap = {
-    "India": "in",
-    "United States": "us",
-    "United Kingdom": "gb",
-    "Australia": "au",
-    "Canada": "ca"
+  "India": "in",
+  "United States": "us",
+  "United Kingdom": "gb",
+  "Australia": "au",
+  "Canada": "ca"
 };
 
 app.get("/api/jobs", async (req, res) => {
 
-    const role = req.query.role || "Business Analyst";
-    const country = req.query.country || "India";
-    const page = req.query.page || 1;
-    const modeFilter = req.query.mode || "All";
+  const role = req.query.role || "Business Analyst";
+  const country = req.query.country || "India";
+  const page = req.query.page || 1;
+  const modeFilter = req.query.mode || "All";
 
-    const countryCode = countryCodeMap[country] || "in";
-    const url = `https://api.adzuna.com/v1/api/jobs/${countryCode}/search/${page}`;
+  const countryCode = countryCodeMap[country] || "in";
+  const url = `https://api.adzuna.com/v1/api/jobs/${countryCode}/search/${page}`;
 
-    try {
+  try {
 
-        const response = await axios.get(url, {
-            params: {
-                app_id: process.env.APP_ID,
-                app_key: process.env.APP_KEY,
-                what: role,
-                results_per_page: 12
-            }
-        });
+    const response = await axios.get(url, {
+      params: {
+        app_id: process.env.APP_ID,
+        app_key: process.env.APP_KEY,
+        what: role,
+        results_per_page: 12
+      }
+    });
 
-        let jobs = response.data.results.map(job => {
+    let jobs = response.data.results.map(job => {
 
-            let mode = "Office";
-            const desc = job.description?.toLowerCase() || "";
+      let mode = "Office";
+      const desc = job.description?.toLowerCase() || "";
 
-            if (desc.includes("remote") && !desc.includes("hybrid")) mode = "WFH";
-            else if (desc.includes("hybrid")) mode = "Hybrid";
+      if (desc.includes("remote") && !desc.includes("hybrid")) mode = "WFH";
+      else if (desc.includes("hybrid")) mode = "Hybrid";
 
-            return {
-                title: job.title || "Not specified",
-                company: job.company?.display_name || "Not specified",
-                salary: job.salary_average || "Not specified",
-                skills: job.description?.substring(0,160) || "Not specified",
-                mode: mode,
-                posted: job.created || "Not specified",
-                source: job.redirect_url || "#",
-                country: job.location?.area[0] || "Not specified",
-                state: job.location?.area[1] || "Not specified"
-            };
-        });
+      return {
+        title: job.title || "Not specified",
+        company: job.company?.display_name || "Not specified",
+        salary: job.salary_average || "Not specified",
+        skills: job.description?.substring(0, 150) || "Not specified",
+        mode: mode,
+        posted: job.created || "Not specified",
+        source: job.redirect_url || "#",
+        country: job.location?.area[0] || "Not specified",
+        state: job.location?.area[1] || "Not specified"
+      };
+    });
 
-        // 🔹 Mode filter logic
-        if(modeFilter !== "All"){
-            jobs = jobs.filter(j => j.mode === modeFilter);
-        }
-
-        res.json(jobs);
-
-    } catch(error){
-        console.error(error.response?.data || error.message);
-        res.status(500).send({ error:"Error fetching jobs" });
+    if (modeFilter !== "All") {
+      jobs = jobs.filter(j => j.mode === modeFilter);
     }
+
+    res.json(jobs);
+
+  } catch (err) {
+    console.error(err.response?.data || err.message);
+    res.status(500).json({ error: "Error fetching jobs" });
+  }
 });
 
-app.listen(5000, () => console.log("Server running on port 5000"));
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
