@@ -5,102 +5,107 @@
 <title>Job Aggregator</title>
 
 <style>
-:root{--primary:#0a66c2;--radius:8px}
-body{margin:0;font-family:Segoe UI;background:#eef3f8}
-.header{background:white;padding:20px 40px;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
-.logo{font-size:22px;font-weight:600;color:var(--primary);margin-bottom:12px}
-.search{display:flex;gap:12px;flex-wrap:wrap}
-select,button{padding:11px 14px;font-size:15px;border-radius:6px;border:1px solid #ddd}
-button{background:var(--primary);color:white;border:none;cursor:pointer}
-.container{padding:30px 40px;max-width:900px;margin:auto}
-.job{background:white;border-radius:var(--radius);padding:18px;margin-bottom:14px;
+body{font-family:Segoe UI;background:#eef3f8;margin:0}
+.container{max-width:900px;margin:auto;padding:30px}
+.job{background:white;border-radius:8px;padding:18px;margin-bottom:14px;
 box-shadow:0 2px 6px rgba(0,0,0,0.08)}
-.title{font-size:18px;font-weight:600;color:var(--primary)}
-.apply{display:inline-block;margin-top:10px;padding:8px 14px;background:#057642;color:white;text-decoration:none;border-radius:5px}
+.title{font-weight:600;font-size:18px}
+.small{font-size:14px;color:#555;margin-top:4px}
+button{margin-top:8px;padding:8px 12px;border:none;border-radius:5px;background:#0a66c2;color:white}
 </style>
 </head>
 
 <body>
 
-<div class="header">
-<div class="logo">Job Aggregator</div>
-
-<div class="search">
-<select id="role">
-<option>Business Analyst</option>
-<option>Consultant</option>
-<option>AI Engineer</option>
-<option>Data Scientist</option>
-<option>Project Manager</option>
-<option>Product Manager</option>
-</select>
-
-<select id="country">
-<option>India</option>
-<option>United States</option>
-<option>United Kingdom</option>
-<option>Australia</option>
-<option>Canada</option>
-</select>
-
-<select id="mode">
-<option>All</option>
-<option>WFH</option>
-<option>Hybrid</option>
-<option>Office</option>
-</select>
-
-<button onclick="loadJobs(1)">Search</button>
-</div>
-</div>
-
 <div class="container">
+
+<h2>Upload Resume Once</h2>
+<input type="file" id="resumeFile">
+
+<hr>
+
 <div id="jobs"></div>
+
 </div>
 
 <script>
 
-let settings={};
+let resumeText="";
 
-async function loadSettings(){
-const res=await fetch("/settings");
-settings=await res.json();
+document.getElementById("resumeFile").addEventListener("change", async e=>{
+resumeText=await e.target.files[0].text();
+});
 
-document.querySelector(".logo").innerText=settings.siteTitle;
-document.documentElement.style.setProperty('--primary',settings.primaryColor);
-document.documentElement.style.setProperty('--radius',settings.cardRadius+"px");
-}
+async function loadJobs(){
 
-async function loadJobs(page){
-
-const role=role.value;
-const country=country.value;
-const mode=mode.value;
-
-const res=await fetch(`/api/jobs?role=${role}&country=${country}&mode=${mode}&page=${page}`);
+const res=await fetch("/api/jobs");
 const jobs=await res.json();
 
 jobsDiv.innerHTML="";
 
 jobs.forEach(j=>{
+
 const card=document.createElement("div");
 card.className="job";
 
 card.innerHTML=`
+
 <div class="title">${j.title}</div>
-<div>${j.company}</div>
-<div>${j.state}, ${j.country}</div>
-${settings.showMode?`<div>${j.mode}</div>`:""}
-${settings.showSalary?`<div>Salary: ${j.salary}</div>`:""}
-<a class="apply" href="${j.source}" target="_blank">Apply</a>`;
+<div class="small">${j.company}</div>
+<div class="small">${j.location}</div>
+<div class="small">Salary: ${j.salary}</div>
+<div class="small"><b>Skills Needed:</b> ${j.skills}</div>
+
+<a href="${j.source}" target="_blank">Apply</a><br>
+
+<button onclick="optimize('${encodeURIComponent(j.skills)}')">
+Upload resume & Generate copy
+</button>
+
+<label>
+<input type="checkbox"
+onclick="logApplication('${j.title}','${j.company}','${j.location}','${j.salary}','${j.source}')">
+Mark as Applied
+</label>
+
+`;
 
 jobsDiv.appendChild(card);
+
 });
+
 }
 
-loadSettings().then(()=>loadJobs(1));
+function optimize(skillsEncoded){
+
+if(!resumeText){
+alert("Upload resume first");
+return;
+}
+
+const skills=decodeURIComponent(skillsEncoded);
+const optimized=resumeText+"\n\nRelevant Skills:\n"+skills;
+
+const blob=new Blob([optimized],{type:"text/plain"});
+const link=document.createElement("a");
+link.href=URL.createObjectURL(blob);
+link.download="optimized_resume.txt";
+link.click();
+
+}
+
+async function logApplication(title,company,location,salary,link){
+
+await fetch("/log-job",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({title,company,location,salary,link})
+});
+
+}
+
+loadJobs();
 
 </script>
-
 </body>
 </html>
