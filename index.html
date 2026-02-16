@@ -24,7 +24,7 @@ button:hover{background:#004182}
 
 <div class="container">
 
-<!-- STEP 1: Resume Upload Screen -->
+<!-- STEP 1: Resume Upload -->
 <div id="uploadScreen" class="card">
 <h2>Upload Your Resume</h2>
 
@@ -37,7 +37,7 @@ button:hover{background:#004182}
 </div>
 
 
-<!-- STEP 2: Job Search Screen -->
+<!-- STEP 2: Jobs Screen -->
 <div id="jobScreen" class="hidden">
 
 <h2>Available Jobs</h2>
@@ -56,23 +56,24 @@ let resumeText="";
 document.getElementById("resumeFile").addEventListener("change", async e=>{
 const file=e.target.files[0];
 resumeText=await file.text();
-status.innerText="Resume uploaded ✔";
+document.getElementById("status").innerText="Resume uploaded ✔";
 });
 
-/* Navigate to job page */
+/* Move to job screen */
 function continueToJobs(){
-uploadScreen.classList.add("hidden");
-jobScreen.classList.remove("hidden");
+document.getElementById("uploadScreen").classList.add("hidden");
+document.getElementById("jobScreen").classList.remove("hidden");
 loadJobs();
 }
 
-/* Load jobs */
+/* Load jobs from backend */
 async function loadJobs(){
 
 const res=await fetch("/api/jobs");
 const jobs=await res.json();
 
-jobsDiv.innerHTML="";
+const container=document.getElementById("jobs");
+container.innerHTML="";
 
 jobs.forEach(j=>{
 
@@ -80,7 +81,6 @@ const card=document.createElement("div");
 card.className="job";
 
 card.innerHTML=`
-
 <div class="title">${j.title}</div>
 <div class="small">${j.company}</div>
 <div class="small">${j.location}</div>
@@ -100,10 +100,9 @@ Generate Optimized Resume
 <label style="margin-left:10px">
 <input type="checkbox"> Mark as Applied
 </label>
-
 `;
 
-jobsDiv.appendChild(card);
+container.appendChild(card);
 
 });
 
