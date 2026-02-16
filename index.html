@@ -5,6 +5,7 @@
 <title>Job Dashboard</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
 
 <style>
 body{font-family:Segoe UI;margin:0;background:#eef3f8}
@@ -13,7 +14,18 @@ box-shadow:0 2px 6px rgba(0,0,0,0.08)}
 .nav button{border:none;background:none;font-size:15px;cursor:pointer}
 .tab{display:none;padding:30px}
 .active{display:block}
-.job{background:white;padding:15px;margin-bottom:10px;border-radius:6px}
+
+.job{
+background:white;border-radius:8px;padding:18px;margin-bottom:14px;
+box-shadow:0 2px 6px rgba(0,0,0,0.08)
+}
+
+.title{font-weight:600;font-size:18px}
+.small{font-size:14px;color:#555;margin-top:4px}
+button.action{
+margin-top:8px;padding:8px 12px;border:none;border-radius:5px;
+background:#0a66c2;color:white;cursor:pointer
+}
 </style>
 </head>
 
@@ -31,16 +43,18 @@ box-shadow:0 2px 6px rgba(0,0,0,0.08)}
 <!-- ADMIN -->
 <div id="admin" class="tab active">
 <h2>Admin Panel</h2>
-<p>Edit settings from admin.html</p>
+<p>Edit site settings via admin.html</p>
 </div>
 
-<!-- JOBS -->
+<!-- AVAILABLE JOBS -->
 <div id="jobs" class="tab">
 <h2>Available Jobs</h2>
+<input type="file" id="resumeFile" accept=".pdf">
+<p id="status"></p>
 <div id="jobList"></div>
 </div>
 
-<!-- APPLIED -->
+<!-- APPLIED JOBS -->
 <div id="applied" class="tab">
 <h2>Applied Jobs</h2>
 <div id="appliedList"></div>
@@ -55,56 +69,84 @@ box-shadow:0 2px 6px rgba(0,0,0,0.08)}
 <!-- CUSTOM ANALYTICS -->
 <div id="custom" class="tab">
 <h2>Custom Analytics</h2>
-<p>Filter jobs by keyword:</p>
-<input id="filterInput">
-<button onclick="filterJobs()">Generate Report</button>
+<input id="filterInput" placeholder="Filter jobs by keyword">
+<button class="action" onclick="filterJobs()">Generate Report</button>
 <div id="customResults"></div>
 </div>
 
-<!-- CHATGPT INTERVIEW -->
+<!-- INTERVIEW -->
 <div id="chat" class="tab">
-<h2>Interview Practice</h2>
+<h2>Interview Prep</h2>
 <select id="roleSelect">
 <option>Business Analyst</option>
 <option>Consultant</option>
 <option>AI Engineer</option>
 </select>
-<button onclick="generateQuestions()">Generate Questions</button>
+<button class="action" onclick="generateQuestions()">Generate Questions</button>
 <ul id="questions"></ul>
 </div>
 
 <script>
 
+let resumeBytes=null;
+
+/* Upload resume */
+document.getElementById("resumeFile").addEventListener("change", async e=>{
+resumeBytes=await e.target.files[0].arrayBuffer();
+status.innerText="Resume uploaded ✔";
+});
+
+/* Tab switch */
 function showTab(id){
 document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
 document.getElementById(id).classList.add('active');
+
+if(id==="jobs") loadJobs();
+if(id==="applied") renderApplied();
+if(id==="analytics") renderAnalytics();
 }
 
-/* Load jobs */
+/* Load jobs with FULL layout restored */
 async function loadJobs(){
+
 const res=await fetch("/api/jobs");
 const jobs=await res.json();
 
 jobList.innerHTML="";
 
 jobs.forEach(j=>{
+
 const div=document.createElement("div");
 div.className="job";
 
 div.innerHTML=`
-<b>${j.title}</b><br>
-${j.company}<br>
-${j.location}<br>
-<button onclick="markApplied('${j.title}','${j.company}')">
+
+<div class="title">${j.title}</div>
+<div class="small">${j.company}</div>
+<div class="small">${j.location}</div>
+<div class="small">Salary: ${j.salary}</div>
+<div class="small"><b>Skills Needed:</b> ${j.skills}</div>
+<div class="small"><b>Job Description:</b> ${j.description}</div>
+
+<a href="${j.source}" target="_blank">
+<button class="action">Apply</button>
+</a>
+
+<button class="action" onclick="generateATSResume('${encodeURIComponent(j.skills)}','${encodeURIComponent(j.description)}')">
+Download Tailored Resume
+</button>
+
+<button class="action" onclick="markApplied('${j.title}','${j.company}')">
 Mark Applied
 </button>
+
 `;
 
 jobList.appendChild(div);
-});
-}
 
-loadJobs();
+});
+
+}
 
 /* Mark applied */
 function markApplied(title,company){
@@ -112,9 +154,9 @@ let applied=JSON.parse(localStorage.getItem("applied")||"[]");
 applied.push({title,company});
 localStorage.setItem("applied",JSON.stringify(applied));
 renderApplied();
-renderAnalytics();
 }
 
+/* Render applied */
 function renderApplied(){
 let applied=JSON.parse(localStorage.getItem("applied")||"[]");
 appliedList.innerHTML="";
@@ -122,10 +164,10 @@ applied.forEach(a=>{
 appliedList.innerHTML+=`<div class="job">${a.title} - ${a.company}</div>`;
 });
 }
-renderApplied();
 
 /* Analytics */
 function renderAnalytics(){
+
 let applied=JSON.parse(localStorage.getItem("applied")||"[]").length;
 let total=document.querySelectorAll("#jobList .job").length;
 
@@ -136,6 +178,7 @@ labels:["Applied","Remaining"],
 datasets:[{data:[applied,total-applied]}]
 }
 });
+
 }
 
 /* Custom analytics */
@@ -154,14 +197,48 @@ function generateQuestions(){
 const role=roleSelect.value;
 const list=[
 `Tell me about your experience as a ${role}`,
-`What tools do you use in ${role}?`,
-`Describe a project you handled`
+`Describe a project where you solved a business problem`,
+`What tools do you use in ${role}?`
 ];
 questions.innerHTML="";
 list.forEach(q=>questions.innerHTML+=`<li>${q}</li>`);
 }
 
-</script>
+/* ATS resume generator (same logic as before) */
+async function generateATSResume(skillsEncoded,descEncoded){
 
+if(!resumeBytes){
+alert("Upload resume first");
+return;
+}
+
+const skills=decodeURIComponent(skillsEncoded);
+const description=decodeURIComponent(descEncoded);
+
+const { PDFDocument, StandardFonts, rgb } = PDFLib;
+
+const pdf=await PDFDocument.load(resumeBytes);
+const page=pdf.addPage();
+const font=await pdf.embedFont(StandardFonts.Helvetica);
+
+const text="Relevant Skills:\n"+skills+"\n\nJob Responsibilities:\n"+description;
+const lines=text.match(/.{1,90}/g);
+
+let y=750;
+lines.forEach(l=>{
+page.drawText(l,{x:40,y:y,size:12,font,color:rgb(0,0,0)});
+y-=18;
+});
+
+const bytes=await pdf.save();
+const blob=new Blob([bytes],{type:"application/pdf"});
+const link=document.createElement("a");
+link.href=URL.createObjectURL(blob);
+link.download="Tailored_Resume.pdf";
+link.click();
+
+}
+
+</script>
 </body>
 </html>
