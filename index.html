@@ -5,7 +5,7 @@
 <title>Job Aggregator</title>
 
 <style>
-body {font-family:Arial;background:#f3f6f8;margin:0}
+body{font-family:Arial;background:#eef3f8;margin:0}
 .header{background:white;padding:20px 40px;box-shadow:0 2px 6px rgba(0,0,0,0.08)}
 .search{display:flex;gap:10px;flex-wrap:wrap}
 select,button{padding:10px;font-size:15px}
@@ -29,18 +29,12 @@ button:hover{background:#004182}
 <select id="role">
 <option>Business Analyst</option>
 <option>Consultant</option>
-<option>Strategy Consultant</option>
-<option>Management Consultant</option>
 <option>AI Engineer</option>
 <option>Machine Learning Engineer</option>
 <option>Data Scientist</option>
-<option>AI Consultant</option>
 <option>Project Manager</option>
 <option>Program Manager</option>
-<option>Delivery Manager</option>
-<option>Scrum Master</option>
 <option>Product Manager</option>
-<option>Product Owner</option>
 </select>
 
 <select id="country">
@@ -51,7 +45,6 @@ button:hover{background:#004182}
 <option>Canada</option>
 </select>
 
-<!-- 🔹 NEW MODE DROPDOWN -->
 <select id="mode">
 <option>All</option>
 <option>WFH</option>
@@ -86,13 +79,13 @@ const role=document.getElementById("role").value;
 const country=document.getElementById("country").value;
 const mode=document.getElementById("mode").value;
 
-const res=await fetch(`http://localhost:5000/api/jobs?role=${role}&country=${country}&page=${page}&mode=${mode}`);
+const res=await fetch(`/api/jobs?role=${role}&country=${country}&mode=${mode}&page=${page}`);
 const jobs=await res.json();
 
 const container=document.getElementById("jobs");
 container.innerHTML="";
 
-if(!jobs.length){container.innerHTML="No jobs found"; return;}
+if(!jobs.length){container.innerHTML="No jobs found";return;}
 
 jobs.forEach(job=>{
 const card=document.createElement("div");
@@ -110,8 +103,8 @@ container.appendChild(card);
 document.getElementById("page").innerText=`Page ${currentPage}`;
 }
 
-function nextPage(){ loadJobs(currentPage+1); }
-function prevPage(){ if(currentPage>1) loadJobs(currentPage-1); }
+function nextPage(){loadJobs(currentPage+1);}
+function prevPage(){if(currentPage>1)loadJobs(currentPage-1);}
 
 loadJobs(currentPage);
 
