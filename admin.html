@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Admin Dashboard</title>
+<style>
+body{font-family:Arial;padding:30px;background:#f4f6f8}
+input,button{padding:8px;margin:8px 0;font-size:15px}
+button{background:#0a66c2;color:white;border:none;border-radius:4px;cursor:pointer}
+</style>
+</head>
+
+<body>
+
+<h2>Website Settings</h2>
+
+<label>Site Title</label><br>
+<input id="title"><br>
+
+<label>Primary Color</label><br>
+<input id="color" type="color"><br>
+
+<label>Card Radius</label><br>
+<input id="radius"><br>
+
+<label><input type="checkbox" id="salary"> Show Salary</label><br>
+<label><input type="checkbox" id="mode"> Show Mode</label><br>
+
+<button onclick="save()">Save</button>
+
+<p id="status"></p>
+
+<script>
+
+let settings={};
+
+async function load(){
+const res=await fetch("/settings");
+settings=await res.json();
+
+title.value=settings.siteTitle;
+color.value=settings.primaryColor;
+radius.value=settings.cardRadius;
+salary.checked=settings.showSalary;
+mode.checked=settings.showMode;
+}
+
+async function save(){
+settings.siteTitle=title.value;
+settings.primaryColor=color.value;
+settings.cardRadius=radius.value;
+settings.showSalary=salary.checked;
+settings.showMode=mode.checked;
+
+await fetch("/settings",{method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify(settings)});
+
+status.innerText="Saved! Refresh homepage.";
+}
+
+load();
+
+</script>
+
+</body>
+</html>
