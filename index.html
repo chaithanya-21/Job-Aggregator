@@ -6,119 +6,29 @@
 
 <style>
 
-body{
-  margin:0;
-  font-family: "Segoe UI", Roboto, Arial, sans-serif;
-  background:#f3f6f8;
+:root{
+--primary:#0a66c2;
+--radius:8px;
 }
 
-/* Header */
-.header{
-  background:white;
-  padding:20px 40px;
-  box-shadow:0 2px 8px rgba(0,0,0,0.06);
-}
+body{margin:0;font-family:Segoe UI;background:#eef3f8}
 
-.logo{
-  font-size:22px;
-  font-weight:600;
-  color:#0a66c2;
-  margin-bottom:12px;
-}
+.header{background:white;padding:20px 40px;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+.logo{font-size:22px;font-weight:600;color:var(--primary);margin-bottom:12px}
 
-/* Search bar */
-.search-bar{
-  display:flex;
-  gap:12px;
-  flex-wrap:wrap;
-}
+.search{display:flex;gap:12px;flex-wrap:wrap}
+select,button{padding:11px 14px;font-size:15px;border-radius:6px;border:1px solid #ddd}
 
-select, button{
-  padding:11px 14px;
-  font-size:15px;
-  border-radius:6px;
-  border:1px solid #ddd;
-}
+button{background:var(--primary);color:white;border:none;cursor:pointer}
+button:hover{background:#004182}
 
-button{
-  background:#0a66c2;
-  color:white;
-  border:none;
-  cursor:pointer;
-  transition:0.2s;
-}
+.container{padding:30px 40px;max-width:900px;margin:auto}
 
-button:hover{
-  background:#004182;
-}
+.job{background:white;border-radius:var(--radius);padding:18px;margin-bottom:14px;
+box-shadow:0 2px 6px rgba(0,0,0,0.08)}
 
-/* Container */
-.container{
-  padding:30px 40px;
-  max-width:900px;
-  margin:auto;
-}
-
-/* Job cards */
-.job{
-  background:white;
-  border-radius:8px;
-  padding:18px 20px;
-  margin-bottom:16px;
-  box-shadow:0 2px 6px rgba(0,0,0,0.08);
-  transition:0.15s ease;
-}
-
-.job:hover{
-  transform:translateY(-2px);
-  box-shadow:0 4px 12px rgba(0,0,0,0.12);
-}
-
-.title{
-  font-size:18px;
-  font-weight:600;
-  color:#0a66c2;
-}
-
-.company{
-  margin-top:4px;
-  color:#444;
-}
-
-.meta{
-  margin-top:6px;
-  color:#777;
-  font-size:14px;
-}
-
-.salary{
-  margin-top:6px;
-  font-weight:500;
-}
-
-/* Apply button */
-.apply{
-  display:inline-block;
-  margin-top:12px;
-  padding:8px 14px;
-  background:#057642;
-  color:white;
-  text-decoration:none;
-  border-radius:5px;
-  font-size:14px;
-}
-
-.apply:hover{
-  background:#035e33;
-}
-
-/* Pagination */
-.pagination{
-  margin-top:25px;
-  display:flex;
-  justify-content:center;
-  gap:12px;
-}
+.title{font-size:18px;font-weight:600;color:var(--primary)}
+.apply{display:inline-block;margin-top:10px;padding:8px 14px;background:#057642;color:white;text-decoration:none;border-radius:5px}
 
 </style>
 </head>
@@ -128,16 +38,13 @@ button:hover{
 <div class="header">
 <div class="logo">Job Aggregator</div>
 
-<div class="search-bar">
-
+<div class="search">
 <select id="role">
 <option>Business Analyst</option>
 <option>Consultant</option>
 <option>AI Engineer</option>
-<option>Machine Learning Engineer</option>
 <option>Data Scientist</option>
 <option>Project Manager</option>
-<option>Program Manager</option>
 <option>Product Manager</option>
 </select>
 
@@ -157,68 +64,54 @@ button:hover{
 </select>
 
 <button onclick="loadJobs(1)">Search</button>
-
 </div>
 </div>
 
 <div class="container">
-
 <div id="jobs"></div>
-
-<div class="pagination">
-<button onclick="prevPage()">Previous</button>
-<span id="page"></span>
-<button onclick="nextPage()">Next</button>
-</div>
-
 </div>
 
 <script>
 
-let currentPage=1;
+let settings={};
+
+async function loadSettings(){
+const res=await fetch("/settings");
+settings=await res.json();
+
+document.querySelector(".logo").innerText=settings.siteTitle;
+document.documentElement.style.setProperty('--primary',settings.primaryColor);
+document.documentElement.style.setProperty('--radius',settings.cardRadius+"px");
+}
 
 async function loadJobs(page){
 
-currentPage=page;
-
-const role=document.getElementById("role").value;
-const country=document.getElementById("country").value;
-const mode=document.getElementById("mode").value;
+const role=role.value;
+const country=country.value;
+const mode=mode.value;
 
 const res=await fetch(`/api/jobs?role=${role}&country=${country}&mode=${mode}&page=${page}`);
 const jobs=await res.json();
 
-const container=document.getElementById("jobs");
-container.innerHTML="";
+jobsDiv.innerHTML="";
 
-if(!jobs.length){
-  container.innerHTML="<p>No jobs found.</p>";
-  return;
-}
-
-jobs.forEach(job=>{
+jobs.forEach(j=>{
 const card=document.createElement("div");
 card.className="job";
 
 card.innerHTML=`
-<div class="title">${job.title}</div>
-<div class="company">${job.company}</div>
-<div class="meta">${job.state}, ${job.country} • ${job.mode}</div>
-<div class="salary">Salary: ${job.salary}</div>
-<a class="apply" href="${job.source}" target="_blank">Apply</a>
-`;
+<div class="title">${j.title}</div>
+<div>${j.company}</div>
+<div>${j.state}, ${j.country}</div>
+${settings.showMode?`<div>${j.mode}</div>`:""}
+${settings.showSalary?`<div>Salary: ${j.salary}</div>`:""}
+<a class="apply" href="${j.source}" target="_blank">Apply</a>`;
 
-container.appendChild(card);
+jobsDiv.appendChild(card);
 });
-
-document.getElementById("page").innerText=`Page ${currentPage}`;
-
 }
 
-function nextPage(){loadJobs(currentPage+1);}
-function prevPage(){if(currentPage>1)loadJobs(currentPage-1);}
-
-loadJobs(currentPage);
+loadSettings().then(()=>loadJobs(1));
 
 </script>
 
