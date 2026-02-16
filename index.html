@@ -5,26 +5,130 @@
 <title>Job Aggregator</title>
 
 <style>
-body{font-family:Arial;background:#eef3f8;margin:0}
-.header{background:white;padding:20px 40px;box-shadow:0 2px 6px rgba(0,0,0,0.08)}
-.search{display:flex;gap:10px;flex-wrap:wrap}
-select,button{padding:10px;font-size:15px}
-button{background:#0a66c2;color:white;border:none;border-radius:4px;cursor:pointer}
-button:hover{background:#004182}
-.section{padding:20px 40px}
-.job{background:white;margin-bottom:12px;padding:15px;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,0.1)}
-.title{font-weight:bold;font-size:17px}
-.apply{display:inline-block;margin-top:8px;padding:6px 12px;background:#057642;color:white;text-decoration:none;border-radius:4px}
-.apply:hover{background:#035e33}
+
+body{
+  margin:0;
+  font-family: "Segoe UI", Roboto, Arial, sans-serif;
+  background:#f3f6f8;
+}
+
+/* Header */
+.header{
+  background:white;
+  padding:20px 40px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.06);
+}
+
+.logo{
+  font-size:22px;
+  font-weight:600;
+  color:#0a66c2;
+  margin-bottom:12px;
+}
+
+/* Search bar */
+.search-bar{
+  display:flex;
+  gap:12px;
+  flex-wrap:wrap;
+}
+
+select, button{
+  padding:11px 14px;
+  font-size:15px;
+  border-radius:6px;
+  border:1px solid #ddd;
+}
+
+button{
+  background:#0a66c2;
+  color:white;
+  border:none;
+  cursor:pointer;
+  transition:0.2s;
+}
+
+button:hover{
+  background:#004182;
+}
+
+/* Container */
+.container{
+  padding:30px 40px;
+  max-width:900px;
+  margin:auto;
+}
+
+/* Job cards */
+.job{
+  background:white;
+  border-radius:8px;
+  padding:18px 20px;
+  margin-bottom:16px;
+  box-shadow:0 2px 6px rgba(0,0,0,0.08);
+  transition:0.15s ease;
+}
+
+.job:hover{
+  transform:translateY(-2px);
+  box-shadow:0 4px 12px rgba(0,0,0,0.12);
+}
+
+.title{
+  font-size:18px;
+  font-weight:600;
+  color:#0a66c2;
+}
+
+.company{
+  margin-top:4px;
+  color:#444;
+}
+
+.meta{
+  margin-top:6px;
+  color:#777;
+  font-size:14px;
+}
+
+.salary{
+  margin-top:6px;
+  font-weight:500;
+}
+
+/* Apply button */
+.apply{
+  display:inline-block;
+  margin-top:12px;
+  padding:8px 14px;
+  background:#057642;
+  color:white;
+  text-decoration:none;
+  border-radius:5px;
+  font-size:14px;
+}
+
+.apply:hover{
+  background:#035e33;
+}
+
+/* Pagination */
+.pagination{
+  margin-top:25px;
+  display:flex;
+  justify-content:center;
+  gap:12px;
+}
+
 </style>
 </head>
 
 <body>
 
 <div class="header">
-<h2>Job Aggregator</h2>
+<div class="logo">Job Aggregator</div>
 
-<div class="search">
+<div class="search-bar">
 
 <select id="role">
 <option>Business Analyst</option>
@@ -52,19 +156,21 @@ button:hover{background:#004182}
 <option>Office</option>
 </select>
 
-<button onclick="loadJobs(1)">Search Jobs</button>
+<button onclick="loadJobs(1)">Search</button>
 
 </div>
 </div>
 
-<div class="section">
+<div class="container">
+
 <div id="jobs"></div>
 
-<div style="margin-top:15px">
+<div class="pagination">
 <button onclick="prevPage()">Previous</button>
 <span id="page"></span>
 <button onclick="nextPage()">Next</button>
 </div>
+
 </div>
 
 <script>
@@ -85,22 +191,28 @@ const jobs=await res.json();
 const container=document.getElementById("jobs");
 container.innerHTML="";
 
-if(!jobs.length){container.innerHTML="No jobs found";return;}
+if(!jobs.length){
+  container.innerHTML="<p>No jobs found.</p>";
+  return;
+}
 
 jobs.forEach(job=>{
 const card=document.createElement("div");
 card.className="job";
+
 card.innerHTML=`
 <div class="title">${job.title}</div>
-<div>${job.company}</div>
-<div>${job.state}, ${job.country}</div>
-<div>Mode: ${job.mode}</div>
-<div>Salary: ${job.salary}</div>
-<a class="apply" href="${job.source}" target="_blank">Apply</a>`;
+<div class="company">${job.company}</div>
+<div class="meta">${job.state}, ${job.country} • ${job.mode}</div>
+<div class="salary">Salary: ${job.salary}</div>
+<a class="apply" href="${job.source}" target="_blank">Apply</a>
+`;
+
 container.appendChild(card);
 });
 
 document.getElementById("page").innerText=`Page ${currentPage}`;
+
 }
 
 function nextPage(){loadJobs(currentPage+1);}
