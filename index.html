@@ -2,149 +2,163 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Job Aggregator</title>
+<title>Job Dashboard</title>
 
-<!-- pdf-lib -->
-<script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body{font-family:Segoe UI;background:#eef3f8;margin:0}
-.container{max-width:900px;margin:auto;padding:30px}
-.card{background:white;border-radius:8px;padding:25px;margin-top:40px;
-box-shadow:0 2px 8px rgba(0,0,0,0.08)}
-.job{background:white;border-radius:8px;padding:18px;margin-bottom:14px;
+body{font-family:Segoe UI;margin:0;background:#eef3f8}
+.nav{display:flex;gap:20px;padding:15px 30px;background:white;
 box-shadow:0 2px 6px rgba(0,0,0,0.08)}
-.title{font-weight:600;font-size:18px}
-.small{font-size:14px;color:#555;margin-top:4px}
-button{margin-top:10px;padding:10px 14px;border:none;border-radius:5px;
-background:#0a66c2;color:white;cursor:pointer}
-button:hover{background:#004182}
-.hidden{display:none}
+.nav button{border:none;background:none;font-size:15px;cursor:pointer}
+.tab{display:none;padding:30px}
+.active{display:block}
+.job{background:white;padding:15px;margin-bottom:10px;border-radius:6px}
 </style>
 </head>
 
 <body>
 
-<div class="container">
-
-<!-- Upload screen -->
-<div id="uploadScreen" class="card">
-<h2>Upload Your Resume (PDF)</h2>
-<input type="file" id="resumeFile" accept=".pdf">
-<p id="status"></p>
-<button onclick="continueToJobs()">Continue to Job Search</button>
+<div class="nav">
+<button onclick="showTab('admin')">Admin</button>
+<button onclick="showTab('jobs')">Available Jobs</button>
+<button onclick="showTab('applied')">Applied Jobs</button>
+<button onclick="showTab('analytics')">Analytics</button>
+<button onclick="showTab('custom')">Custom Analytics</button>
+<button onclick="showTab('chat')">Interview Prep</button>
 </div>
 
-<!-- Jobs screen -->
-<div id="jobScreen" class="hidden">
+<!-- ADMIN -->
+<div id="admin" class="tab active">
+<h2>Admin Panel</h2>
+<p>Edit settings from admin.html</p>
+</div>
+
+<!-- JOBS -->
+<div id="jobs" class="tab">
 <h2>Available Jobs</h2>
-<div id="jobs"></div>
+<div id="jobList"></div>
 </div>
 
+<!-- APPLIED -->
+<div id="applied" class="tab">
+<h2>Applied Jobs</h2>
+<div id="appliedList"></div>
+</div>
+
+<!-- ANALYTICS -->
+<div id="analytics" class="tab">
+<h2>Application Analytics</h2>
+<canvas id="chart1"></canvas>
+</div>
+
+<!-- CUSTOM ANALYTICS -->
+<div id="custom" class="tab">
+<h2>Custom Analytics</h2>
+<p>Filter jobs by keyword:</p>
+<input id="filterInput">
+<button onclick="filterJobs()">Generate Report</button>
+<div id="customResults"></div>
+</div>
+
+<!-- CHATGPT INTERVIEW -->
+<div id="chat" class="tab">
+<h2>Interview Practice</h2>
+<select id="roleSelect">
+<option>Business Analyst</option>
+<option>Consultant</option>
+<option>AI Engineer</option>
+</select>
+<button onclick="generateQuestions()">Generate Questions</button>
+<ul id="questions"></ul>
 </div>
 
 <script>
 
-let resumeBytes=null;
-
-/* Upload resume */
-document.getElementById("resumeFile").addEventListener("change", async e=>{
-resumeBytes=await e.target.files[0].arrayBuffer();
-status.innerText="Resume uploaded ✔";
-});
-
-/* Navigate */
-function continueToJobs(){
-uploadScreen.classList.add("hidden");
-jobScreen.classList.remove("hidden");
-loadJobs();
+function showTab(id){
+document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+document.getElementById(id).classList.add('active');
 }
 
 /* Load jobs */
 async function loadJobs(){
-
 const res=await fetch("/api/jobs");
 const jobs=await res.json();
 
-const container=document.getElementById("jobs");
-container.innerHTML="";
+jobList.innerHTML="";
 
 jobs.forEach(j=>{
+const div=document.createElement("div");
+div.className="job";
 
-const card=document.createElement("div");
-card.className="job";
-
-card.innerHTML=`
-<div class="title">${j.title}</div>
-<div class="small">${j.company}</div>
-<div class="small">${j.location}</div>
-<div class="small">Salary: ${j.salary}</div>
-<div class="small"><b>Skills Needed:</b> ${j.skills}</div>
-
-<br>
-
-<a href="${j.source}" target="_blank">
-<button>Apply to Job</button>
-</a>
-
-<button onclick="generateATSResume('${encodeURIComponent(j.skills)}')">
-Download ATS Optimized Resume
+div.innerHTML=`
+<b>${j.title}</b><br>
+${j.company}<br>
+${j.location}<br>
+<button onclick="markApplied('${j.title}','${j.company}')">
+Mark Applied
 </button>
-
 `;
 
-container.appendChild(card);
-
+jobList.appendChild(div);
 });
-
 }
 
-/* ATS-safe resume generator */
-async function generateATSResume(skillsEncoded){
+loadJobs();
 
-if(!resumeBytes){
-alert("Upload resume first");
-return;
+/* Mark applied */
+function markApplied(title,company){
+let applied=JSON.parse(localStorage.getItem("applied")||"[]");
+applied.push({title,company});
+localStorage.setItem("applied",JSON.stringify(applied));
+renderApplied();
+renderAnalytics();
 }
 
-const skills=decodeURIComponent(skillsEncoded);
-
-const { PDFDocument, StandardFonts, rgb } = PDFLib;
-
-const existingPdf = await PDFDocument.load(resumeBytes);
-const pages = existingPdf.getPages();
-
-// Add new page
-const newPage = existingPdf.addPage();
-const { width, height } = newPage.getSize();
-
-const font = await existingPdf.embedFont(StandardFonts.Helvetica);
-const fontSize = 12;
-
-const text = "Additional Relevant Skills:\n\n"+skills;
-
-const wrapped = text.match(/.{1,90}/g);
-
-let y = height - 40;
-wrapped.forEach(line=>{
-newPage.drawText(line,{
-x:40,
-y:y,
-size:fontSize,
-font,
-color:rgb(0,0,0)
+function renderApplied(){
+let applied=JSON.parse(localStorage.getItem("applied")||"[]");
+appliedList.innerHTML="";
+applied.forEach(a=>{
+appliedList.innerHTML+=`<div class="job">${a.title} - ${a.company}</div>`;
 });
-y -= 18;
+}
+renderApplied();
+
+/* Analytics */
+function renderAnalytics(){
+let applied=JSON.parse(localStorage.getItem("applied")||"[]").length;
+let total=document.querySelectorAll("#jobList .job").length;
+
+new Chart(chart1,{
+type:'doughnut',
+data:{
+labels:["Applied","Remaining"],
+datasets:[{data:[applied,total-applied]}]
+}
 });
+}
 
-const pdfBytes = await existingPdf.save();
+/* Custom analytics */
+function filterJobs(){
+const keyword=filterInput.value.toLowerCase();
+const jobs=document.querySelectorAll("#jobList .job");
+customResults.innerHTML="";
+jobs.forEach(j=>{
+if(j.innerText.toLowerCase().includes(keyword))
+customResults.appendChild(j.cloneNode(true));
+});
+}
 
-const blob = new Blob([pdfBytes], { type: "application/pdf" });
-const link = document.createElement("a");
-link.href = URL.createObjectURL(blob);
-link.download = "ATS_Optimized_Resume.pdf";
-link.click();
-
+/* Interview generator */
+function generateQuestions(){
+const role=roleSelect.value;
+const list=[
+`Tell me about your experience as a ${role}`,
+`What tools do you use in ${role}?`,
+`Describe a project you handled`
+];
+questions.innerHTML="";
+list.forEach(q=>questions.innerHTML+=`<li>${q}</li>`);
 }
 
 </script>
