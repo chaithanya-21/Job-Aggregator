@@ -9,6 +9,7 @@ app.use(express.json());
 app.use(express.static(__dirname));
 
 app.get("/", (req,res)=>res.sendFile(__dirname+"/index.html"));
+app.get("/admin",(req,res)=>res.sendFile(__dirname+"/admin.html"));
 
 const countryCodeMap={
     "India":"in",
@@ -44,7 +45,7 @@ app.get("/api/jobs", async(req,res)=>{
             company:job.company?.display_name||"",
             salary:job.salary_average||"Not specified",
             skills:job.description?.substring(0,120)||"",
-            description:job.description?.substring(0,600)||"",
+            description:job.description?.substring(0,500)||"",
             source:job.redirect_url||"#",
             location:`${job.location?.area[1]||""}, ${job.location?.area[0]||""}`
 
