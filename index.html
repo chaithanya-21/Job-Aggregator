@@ -37,26 +37,40 @@ canvas{max-width:320px!important;max-height:220px!important;margin:15px}
 <!-- ADMIN -->
 <div id="admin" class="tab active">
 <h2>Admin Panel</h2>
-<p>System running normally.</p>
 <button class="action" onclick="location.reload()">Refresh</button>
+<button class="action" onclick="location.reload()">Next Page</button>
 </div>
 
 <!-- JOBS -->
 <div id="jobs" class="tab">
 <h2>Available Jobs</h2>
+
+<button class="action" onclick="loadJobs()">Refresh</button>
+<button class="action" onclick="nextPage()">Next Page</button><br><br>
+
+<label><b>Upload Resume File</b></label><br>
 <input type="file" id="resumeFile" accept=".pdf"><br><br>
+
 <div id="jobList"></div>
 </div>
 
 <!-- APPLIED -->
 <div id="applied" class="tab">
 <h2>Applied Jobs</h2>
+
+<button class="action" onclick="renderApplied()">Refresh</button>
+<button class="action" onclick="renderApplied()">Next Page</button>
+
 <div id="appliedList"></div>
 </div>
 
 <!-- ANALYTICS -->
 <div id="analytics" class="tab">
-<h2>Application Analytics</h2>
+<h2>Analytics Dashboard</h2>
+
+<button class="action" onclick="renderAnalytics()">Refresh</button>
+<button class="action" onclick="renderAnalytics()">Next Page</button>
+
 <div class="dashboard">
 <canvas id="funnel"></canvas>
 <canvas id="trend"></canvas>
@@ -68,6 +82,10 @@ canvas{max-width:320px!important;max-height:220px!important;margin:15px}
 <!-- CHATGPT -->
 <div id="chat" class="tab">
 <h2>ChatGPT Assistant</h2>
+
+<button class="action" onclick="ask()">Refresh</button>
+<button class="action" onclick="ask()">Next Page</button><br><br>
+
 <textarea id="chatInput" style="width:100%;height:80px"></textarea><br>
 <button class="action" onclick="ask()">Ask</button>
 <div id="chatOutput"></div>
@@ -75,7 +93,14 @@ canvas{max-width:320px!important;max-height:220px!important;margin:15px}
 
 <script>
 
-/* Tabs */
+let resumeBytes=null;
+let page=1;
+
+resumeFile.addEventListener("change",async e=>{
+resumeBytes=await e.target.files[0].arrayBuffer();
+});
+
+/* Tab switching */
 function showTab(id){
 document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
 document.getElementById(id).classList.add('active');
@@ -84,21 +109,20 @@ if(id==="applied") renderApplied();
 if(id==="analytics") renderAnalytics();
 }
 
-/* Resume upload */
-let resumeBytes=null;
-resumeFile.addEventListener("change",async e=>{
-resumeBytes=await e.target.files[0].arrayBuffer();
-});
+/* Pagination */
+function nextPage(){
+page++;
+loadJobs();
+}
 
 /* Load jobs */
 async function loadJobs(){
 
-const res=await fetch("/api/jobs");
+const res=await fetch(`/api/jobs?page=${page}`);
 const jobs=await res.json();
 
-localStorage.setItem("allJobs",JSON.stringify(jobs));
-
 jobList.innerHTML="";
+
 jobs.forEach(j=>{
 jobList.innerHTML+=`
 <div class="job">
@@ -126,9 +150,10 @@ Download Optimized Resume (PDF)
 
 </div>`;
 });
+
 }
 
-/* Resume optimizer */
+/* Resume */
 async function downloadResume(sk,desc){
 if(!resumeBytes){alert("Upload resume first");return;}
 const {PDFDocument,StandardFonts,rgb}=PDFLib;
@@ -147,7 +172,7 @@ link.download="Optimized_Resume.pdf";
 link.click();
 }
 
-/* Applied */
+/* Applied tracking */
 function markApplied(title,company){
 let a=JSON.parse(localStorage.getItem("applied")||"[]");
 a.push({title,company,date:new Date()});
@@ -173,41 +198,14 @@ localStorage.setItem("applied",JSON.stringify(a));
 renderApplied();
 }
 
-/* Analytics dashboards */
+/* Analytics */
 function renderAnalytics(){
-
 let applied=JSON.parse(localStorage.getItem("applied")||"[]");
 
-new Chart(funnel,{
-type:'bar',
-data:{labels:["Viewed","Applied"],
-datasets:[{data:[20,applied.length]}]}
-});
-
-new Chart(trend,{
-type:'line',
-data:{
-labels:applied.map(x=>new Date(x.date).toLocaleDateString()),
-datasets:[{data:applied.map((_,i)=>i+1)}]
-}
-});
-
-new Chart(companies,{
-type:'pie',
-data:{
-labels:applied.map(x=>x.company),
-datasets:[{data:applied.map(()=>1)}]
-}
-});
-
-new Chart(conversion,{
-type:'doughnut',
-data:{
-labels:["Applied","Remaining"],
-datasets:[{data:[applied.length,20-applied.length]}]
-}
-});
-
+new Chart(funnel,{type:'bar',data:{labels:["Viewed","Applied"],datasets:[{data:[20,applied.length]}]}});
+new Chart(trend,{type:'line',data:{labels:applied.map(x=>new Date(x.date).toLocaleDateString()),datasets:[{data:applied.map((_,i)=>i+1)}]}});
+new Chart(companies,{type:'pie',data:{labels:applied.map(x=>x.company),datasets:[{data:applied.map(()=>1)}]}});
+new Chart(conversion,{type:'doughnut',data:{labels:["Applied","Remaining"],datasets:[{data:[applied.length,20-applied.length]}]}});
 }
 
 /* ChatGPT */
@@ -228,6 +226,7 @@ const data=await res.json();
 chatOutput.innerText=data.choices[0].message.content;
 
 }
+
 </script>
 </body>
 </html>
