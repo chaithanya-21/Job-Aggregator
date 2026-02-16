@@ -1,0 +1,7 @@
+{
+  "siteTitle": "Job Aggregator",
+  "primaryColor": "#0a66c2",
+  "cardRadius": "8",
+  "showSalary": true,
+  "showMode": true
+}
