@@ -10,26 +10,19 @@ app.use(express.static(__dirname));
 
 app.get("/", (req,res)=>res.sendFile(__dirname+"/index.html"));
 
-/* JOB API */
 const countryCodeMap={
-    "India":"in",
-    "United States":"us",
-    "United Kingdom":"gb",
-    "Australia":"au",
-    "Canada":"ca"
+    "India":"in","United States":"us","United Kingdom":"gb",
+    "Australia":"au","Canada":"ca"
 };
 
 app.get("/api/jobs", async(req,res)=>{
 
     const role=req.query.role||"Business Analyst";
-    const country=req.query.country||"India";
     const page=req.query.page||1;
 
-    const countryCode=countryCodeMap[country]||"in";
-    const url=`https://api.adzuna.com/v1/api/jobs/${countryCode}/search/${page}`;
+    const url=`https://api.adzuna.com/v1/api/jobs/in/search/${page}`;
 
     try{
-
         const response=await axios.get(url,{
             params:{
                 app_id:process.env.APP_ID,
@@ -40,50 +33,37 @@ app.get("/api/jobs", async(req,res)=>{
         });
 
         const jobs=response.data.results.map(job=>({
-
             title:job.title||"",
             company:job.company?.display_name||"",
             salary:job.salary_average||"Not specified",
             skills:job.description?.substring(0,140)||"",
             description:job.description?.substring(0,500)||"",
             source:job.redirect_url||"#",
-            location:`${job.location?.area[1]||""}, ${job.location?.area[0]||""}`
-
+            location:`${job.location?.area[1]||""}, ${job.location?.area[0]||""}`,
+            logo:`https://logo.clearbit.com/${(job.company?.display_name||"google").replace(/ /g,"").toLowerCase()}.com`
         }));
 
         res.json(jobs);
-
-    }catch(err){
+    }
+    catch(err){
         console.error(err.message);
-        res.status(500).json({error:"Error fetching jobs"});
+        res.status(500).json({error:"Job fetch failed"});
     }
 });
 
-
-/* CHATGPT API */
 app.post("/chat", async(req,res)=>{
-
     try{
-
-        const response = await axios.post(
+        const response=await axios.post(
             "https://api.openai.com/v1/chat/completions",
             {
-                model: "gpt-4o-mini",
-                messages: req.body.messages
+                model:"gpt-4o-mini",
+                messages:req.body.messages
             },
-            {
-                headers:{
-                    "Authorization":`Bearer ${process.env.OPENAI_API_KEY}`,
-                    "Content-Type":"application/json"
-                }
-            }
+            {headers:{Authorization:`Bearer ${process.env.OPENAI_API_KEY}`}}
         );
-
         res.json(response.data);
-
     }catch(e){
-        console.error(e.response?.data||e.message);
-        res.status(500).json({error:"ChatGPT error"});
+        res.status(500).json({error:"ChatGPT failed"});
     }
 });
 
