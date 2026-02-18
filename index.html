@@ -2,62 +2,79 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Job Dashboard</title>
+<title>Career Accelerator</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
 
 <style>
-body{font-family:Segoe UI;margin:0;background:#eef3f8}
-.nav{display:flex;gap:18px;padding:15px 25px;background:white;
-box-shadow:0 2px 6px rgba(0,0,0,0.08)}
-.nav button{border:none;background:none;font-size:14px;cursor:pointer}
-.tab{display:none;padding:25px}
-.active{display:block}
-.job{background:white;border-radius:8px;padding:16px;margin-bottom:12px;
-box-shadow:0 2px 6px rgba(0,0,0,0.08)}
-.title{font-weight:600;font-size:17px}
-.small{font-size:13px;color:#555;margin-top:3px}
-button.action{margin-top:6px;padding:7px 11px;border:none;border-radius:5px;background:#0a66c2;color:white;cursor:pointer}
-canvas{max-width:320px!important;max-height:220px!important;margin:15px}
+body{margin:0;font-family:Segoe UI;background:#f4f7fb;color:#1a1a1a}
+
+header{
+background:linear-gradient(90deg,#0a66c2,#3a8dde);
+color:white;padding:18px 30px;font-size:20px;font-weight:600
+}
+
+.nav{
+display:flex;gap:20px;padding:12px 30px;background:white;
+box-shadow:0 2px 6px rgba(0,0,0,0.06)
+}
+
+.nav button{border:none;background:none;font-weight:500;cursor:pointer}
+
+.container{padding:30px;max-width:1200px;margin:auto}
+
+.job{
+background:white;border-radius:10px;padding:20px;margin-bottom:16px;
+box-shadow:0 4px 12px rgba(0,0,0,0.08);display:flex;gap:15px
+}
+
+.logo{width:60px;height:60px;border-radius:8px;background:#f0f0f0}
+
+.details{flex:1}
+
+.title{font-size:18px;font-weight:600}
+.meta{font-size:13px;color:#555;margin-top:3px}
+
+.actions button{
+margin-right:8px;margin-top:10px;padding:8px 12px;
+border:none;border-radius:6px;background:#0a66c2;color:white;cursor:pointer
+}
+
+input.search{padding:8px;width:260px;border-radius:6px;border:1px solid #ccc}
+
 .dashboard{display:flex;flex-wrap:wrap;gap:20px}
-input.search{padding:6px;width:250px;margin-bottom:10px}
+canvas{background:white;padding:12px;border-radius:10px;
+box-shadow:0 2px 8px rgba(0,0,0,0.08);max-width:320px}
+
+.tab{display:none}
+.active{display:block}
 </style>
 </head>
 
 <body>
 
+<header>Career Accelerator — Land a Job Faster</header>
+
 <div class="nav">
-<button onclick="showTab('admin')">Admin</button>
-<button onclick="showTab('jobs')">Available Jobs</button>
-<button onclick="showTab('applied')">Applied Jobs</button>
-<button onclick="showTab('analytics')">Analytics</button>
-<button onclick="showTab('chat')">ChatGPT</button>
+<button onclick="tab('jobs')">Available Jobs</button>
+<button onclick="tab('applied')">Applied</button>
+<button onclick="tab('analytics')">Analytics</button>
+<button onclick="tab('chat')">AI Coach</button>
 </div>
 
-<!-- ADMIN -->
-<div id="admin" class="tab active">
-<h2>Admin Panel</h2>
-<button class="action" onclick="location.reload()">Refresh</button>
-<button class="action" onclick="location.reload()">Next Page</button>
-</div>
+<div class="container">
 
 <!-- JOBS -->
-<div id="jobs" class="tab">
+<div id="jobs" class="tab active">
 
-<h2>Available Jobs</h2>
-
-<input id="roleSearch" class="search" placeholder="Search job role...">
-<button class="action" onclick="loadJobs()">Search</button>
-
-<br><br>
-
-<button class="action" onclick="loadJobs()">Refresh</button>
-<button class="action" onclick="nextPage()">Next Page</button>
+<input id="roleSearch" class="search" placeholder="Search role…">
+<button onclick="loadJobs()">Search</button>
+<button onclick="loadJobs()">Refresh</button>
+<button onclick="nextPage()">Next Page</button>
 
 <br><br>
-
-<label><b>Upload Resume File</b></label><br>
+<label><b>Upload Resume File (PDF)</b></label><br>
 <input type="file" id="resumeFile" accept=".pdf"><br><br>
 
 <div id="jobList"></div>
@@ -66,17 +83,12 @@ input.search{padding:6px;width:250px;margin-bottom:10px}
 
 <!-- APPLIED -->
 <div id="applied" class="tab">
-<h2>Applied Jobs</h2>
-<button class="action" onclick="renderApplied()">Refresh</button>
-<button class="action" onclick="renderApplied()">Next Page</button>
+<button onclick="renderApplied()">Refresh</button>
 <div id="appliedList"></div>
 </div>
 
 <!-- ANALYTICS -->
 <div id="analytics" class="tab">
-<h2>Analytics Dashboard</h2>
-<button class="action" onclick="renderAnalytics()">Refresh</button>
-<button class="action" onclick="renderAnalytics()">Next Page</button>
 <div class="dashboard">
 <canvas id="funnel"></canvas>
 <canvas id="trend"></canvas>
@@ -87,12 +99,11 @@ input.search{padding:6px;width:250px;margin-bottom:10px}
 
 <!-- CHATGPT -->
 <div id="chat" class="tab">
-<h2>ChatGPT Assistant</h2>
-<button class="action" onclick="ask()">Refresh</button>
-<button class="action" onclick="ask()">Next Page</button><br><br>
-<textarea id="chatInput" style="width:100%;height:80px"></textarea><br>
-<button class="action" onclick="ask()">Ask</button>
+<textarea id="chatInput" style="width:100%;height:90px"></textarea><br>
+<button onclick="ask()">Ask AI Coach</button>
 <div id="chatOutput"></div>
+</div>
+
 </div>
 
 <script>
@@ -100,11 +111,11 @@ input.search{padding:6px;width:250px;margin-bottom:10px}
 let resumeBytes=null;
 let page=1;
 
-resumeFile.addEventListener("change",async e=>{
+resumeFile.onchange=async e=>{
 resumeBytes=await e.target.files[0].arrayBuffer();
-});
+};
 
-function showTab(id){
+function tab(id){
 document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
 document.getElementById(id).classList.add('active');
 if(id==="jobs") loadJobs();
@@ -112,13 +123,11 @@ if(id==="applied") renderApplied();
 if(id==="analytics") renderAnalytics();
 }
 
-function nextPage(){ page++; loadJobs(); }
+function nextPage(){page++;loadJobs();}
 
-/* LOAD JOBS WITH SEARCH */
 async function loadJobs(){
 
-const role=document.getElementById("roleSearch").value || "Business Analyst";
-
+const role=roleSearch.value||"Business Analyst";
 const res=await fetch(`/api/jobs?page=${page}&role=${encodeURIComponent(role)}`);
 const jobs=await res.json();
 
@@ -128,43 +137,54 @@ jobs.forEach(j=>{
 jobList.innerHTML+=`
 <div class="job">
 
+<img class="logo" src="${j.logo}" onerror="this.src='https://logo.clearbit.com/google.com'">
+
+<div class="details">
+
 <div class="title">${j.title}</div>
-<div class="small">${j.company}</div>
-<div class="small">${j.location}</div>
-<div class="small">Salary: ${j.salary}</div>
-<div class="small"><b>Skills Needed:</b> ${j.skills}</div>
-<div class="small"><b>Job Description:</b> ${j.description}</div>
+<div class="meta">${j.company} • ${j.location}</div>
+<div class="meta">Salary: ${j.salary}</div>
+<div class="meta"><b>Skills Needed:</b> ${j.skills}</div>
+<div class="meta"><b>Job Description:</b> ${j.description}</div>
+
+<div class="actions">
 
 <a href="${j.source}" target="_blank">
-<button class="action">Apply</button>
+<button>Apply</button>
 </a>
 
-<button class="action"
-onclick="markApplied('${j.title}','${j.company}')">
+<button onclick="markApplied('${j.title}','${j.company}')">
 Mark Applied
 </button>
 
-<button class="action"
-onclick="downloadResume('${encodeURIComponent(j.skills)}','${encodeURIComponent(j.description)}')">
-Download Optimized Resume (PDF)
+<button onclick="downloadResume('${encodeURIComponent(j.skills)}','${encodeURIComponent(j.description)}')">
+Download Optimized Resume
 </button>
 
+</div>
+</div>
 </div>`;
 });
-
 }
 
-/* Resume */
 async function downloadResume(sk,desc){
+
 if(!resumeBytes){alert("Upload resume first");return;}
+
 const {PDFDocument,StandardFonts,rgb}=PDFLib;
 const pdf=await PDFDocument.load(resumeBytes);
 const page=pdf.addPage();
 const font=await pdf.embedFont(StandardFonts.Helvetica);
-const text="Skills:\n"+decodeURIComponent(sk)+"\n\nJD:\n"+decodeURIComponent(desc);
+
+const text="Target Skills:\n"+decodeURIComponent(sk)+"\n\nRole Responsibilities:\n"+decodeURIComponent(desc);
 const lines=text.match(/.{1,90}/g);
+
 let y=750;
-lines.forEach(l=>{page.drawText(l,{x:40,y:y,size:12,font,color:rgb(0,0,0)});y-=18;});
+lines.forEach(l=>{
+page.drawText(l,{x:40,y:y,size:12,font,color:rgb(0,0,0)});
+y-=18;
+});
+
 const bytes=await pdf.save();
 const blob=new Blob([bytes],{type:"application/pdf"});
 const link=document.createElement("a");
@@ -173,7 +193,6 @@ link.download="Optimized_Resume.pdf";
 link.click();
 }
 
-/* Applied */
 function markApplied(title,company){
 let a=JSON.parse(localStorage.getItem("applied")||"[]");
 a.push({title,company,date:new Date()});
@@ -186,8 +205,10 @@ let a=JSON.parse(localStorage.getItem("applied")||"[]");
 appliedList.innerHTML="";
 a.forEach((j,i)=>{
 appliedList.innerHTML+=`
-<div class="job">${j.title} - ${j.company}
-<button class="action" onclick="unmark(${i})">Unmark</button>
+<div class="job">
+<div class="details">${j.title} - ${j.company}
+<button onclick="unmark(${i})">Unmark</button>
+</div>
 </div>`;
 });
 }
@@ -199,16 +220,25 @@ localStorage.setItem("applied",JSON.stringify(a));
 renderApplied();
 }
 
-/* Analytics */
 function renderAnalytics(){
 let applied=JSON.parse(localStorage.getItem("applied")||"[]");
-new Chart(funnel,{type:'bar',data:{labels:["Viewed","Applied"],datasets:[{data:[20,applied.length]}]}});
-new Chart(trend,{type:'line',data:{labels:applied.map(x=>new Date(x.date).toLocaleDateString()),datasets:[{data:applied.map((_,i)=>i+1)}]}});
-new Chart(companies,{type:'pie',data:{labels:applied.map(x=>x.company),datasets:[{data:applied.map(()=>1)}]}});
-new Chart(conversion,{type:'doughnut',data:{labels:["Applied","Remaining"],datasets:[{data:[applied.length,20-applied.length]}]}});
+
+new Chart(funnel,{type:'bar',
+data:{labels:["Viewed","Applied"],datasets:[{data:[20,applied.length]}]}});
+
+new Chart(trend,{type:'line',
+data:{labels:applied.map(x=>new Date(x.date).toLocaleDateString()),
+datasets:[{data:applied.map((_,i)=>i+1)}]}});
+
+new Chart(companies,{type:'pie',
+data:{labels:applied.map(x=>x.company),
+datasets:[{data:applied.map(()=>1)}]}});
+
+new Chart(conversion,{type:'doughnut',
+data:{labels:["Applied","Remaining"],
+datasets:[{data:[applied.length,20-applied.length]}]}});
 }
 
-/* ChatGPT */
 async function ask(){
 
 const res=await fetch("/chat",{
@@ -216,7 +246,7 @@ method:"POST",
 headers:{"Content-Type":"application/json"},
 body:JSON.stringify({
 messages:[
-{role:"system",content:"You are a career coach."},
+{role:"system",content:"You are an expert job coach helping candidates land roles fast."},
 {role:"user",content:chatInput.value}
 ]
 })
